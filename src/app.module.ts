@@ -3,7 +3,9 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
+import { randomUUID } from 'crypto';
 import configuration, { validateConfig } from './config/configuration';
+import { CORRELATION_ID_HEADER } from './common/correlation/correlation.constants';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { RabbitMqModule } from './rabbitmq/rabbitmq.module';
@@ -34,6 +36,13 @@ import { HealthController } from './health.controller';
           process.env.NODE_ENV !== 'production'
             ? { target: 'pino-pretty', options: { singleLine: true } }
             : undefined,
+        // Reads x-correlation-id set by correlationMiddleware in main.ts.
+        genReqId: (req) => {
+          const header = req.headers[CORRELATION_ID_HEADER];
+          const value = Array.isArray(header) ? header[0] : header;
+          return value ?? randomUUID();
+        },
+        customProps: (req) => ({ correlationId: req.id }),
         // Never log bearer tokens or other credentials.
         redact: ['req.headers.authorization'],
       },

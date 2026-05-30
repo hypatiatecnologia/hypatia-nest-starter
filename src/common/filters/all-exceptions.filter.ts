@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { CorrelationContext } from '../correlation/correlation.context';
 
 /**
  * Normalizes error responses across the API.
@@ -27,15 +28,19 @@ export class AllExceptionsFilter implements ExceptionFilter {
       exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const body = this.resolveBody(exception);
+    const correlationId = request.correlationId ?? CorrelationContext.get();
 
     if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
       const detail = exception instanceof Error ? exception.stack : String(exception);
-      this.logger.error(`${request.method} ${request.url} — ${detail}`);
+      this.logger.error(
+        `${request.method} ${request.url}${correlationId ? ` [${correlationId}]` : ''} — ${detail}`,
+      );
     }
 
     response.status(status).json({
       statusCode: status,
       ...body,
+      ...(correlationId ? { correlationId } : {}),
       path: request.url,
       timestamp: new Date().toISOString(),
     });

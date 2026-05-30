@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { CorrelationContext } from '../../common/correlation/correlation.context';
 import { RabbitMqService } from '../../rabbitmq/rabbitmq.service';
 
 /**
@@ -6,13 +7,14 @@ import { RabbitMqService } from '../../rabbitmq/rabbitmq.service';
  *
  * Keep HTTP thin: controller validates input, service owns the use case.
  * Inject RabbitMqService to emit events after a successful transaction.
+ * Correlation id flows automatically from CorrelationContext.
  */
 @Injectable()
 export class ExampleService {
   constructor(private readonly rabbitmq: RabbitMqService) {}
 
-  async publishEvent(type: string, payload: Record<string, unknown>, correlationId?: string) {
-    await this.rabbitmq.publish(type, payload, correlationId);
-    return { published: true, type };
+  async publishEvent(type: string, payload: Record<string, unknown>) {
+    await this.rabbitmq.publish(type, payload);
+    return { published: true, type, correlationId: CorrelationContext.get() };
   }
 }

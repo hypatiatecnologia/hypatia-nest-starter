@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ChannelWrapper } from 'amqp-connection-manager';
 import { ConsumeMessage } from 'amqplib';
 import configuration, { validateConfig } from '../config/configuration';
+import { CorrelationContext } from '../common/correlation/correlation.context';
 import { RabbitMqService } from './rabbitmq.service';
 import { RedisService } from '../redis/redis.service';
 import { HypatiaEvent } from './rabbitmq.types';
@@ -94,6 +95,19 @@ describe('RabbitMqService', () => {
       expect(body.payload).toEqual({ orderId: '42' });
       expect(body.eventId).toEqual(expect.any(String));
     });
+
+    it('uses CorrelationContext when correlationId is omitted', async () => {
+      await CorrelationContext.runAsync('ctx-from-http', async () => {
+        await service.publish('example.created', { orderId: '42' });
+      });
+
+      expect(publish).toHaveBeenCalledWith(
+        'hypatia.events',
+        'example.created',
+        expect.any(Buffer),
+        expect.objectContaining({ correlationId: 'ctx-from-http' }),
+      );
+    });
   });
 
   describe('message handling', () => {
@@ -129,6 +143,15 @@ describe('RabbitMqService', () => {
       expect(redis.set).toHaveBeenCalledWith('event:processed:evt-1', '1', 86400);
       expect(ack).toHaveBeenCalled();
       expect(nack).not.toHaveBeenCalled();
+    });
+
+    it('runs the handler inside CorrelationContext from the event', async () => {
+      const event = buildEvent({ correlationId: 'event-corr-99' });
+      handler.mockImplementation(async () => {
+        expect(CorrelationContext.get()).toBe('event-corr-99');
+      });
+
+      await handle(event);
     });
 
     it('skips duplicate events and acks without invoking the handler', async () => {

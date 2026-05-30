@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { correlationMiddleware } from './common/correlation/correlation.middleware';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { AppConfig } from './config/configuration';
 
@@ -25,6 +26,9 @@ async function bootstrap() {
 
   // Graceful shutdown on SIGTERM/SIGINT (Docker, k8s rolling deploys).
   app.enableShutdownHooks();
+
+  // Correlation id before pino so access logs include the same id as handlers.
+  app.use(correlationMiddleware);
 
   // Structured JSON logs via pino; sensitive headers are redacted in AppModule.
   app.useLogger(app.get(Logger));

@@ -7,6 +7,7 @@ import amqpConnectionManager, {
 import { ConfirmChannel, ConsumeMessage } from 'amqplib';
 import { randomUUID } from 'crypto';
 import { AppConfig } from '../config/configuration';
+import { CorrelationContext } from '../common/correlation/correlation.context';
 import { RedisService } from '../redis/redis.service';
 import { HypatiaEvent, EventHandler } from './rabbitmq.types';
 
@@ -20,7 +21,8 @@ import { HypatiaEvent, EventHandler } from './rabbitmq.types';
  *   {RABBITMQ_QUEUE}.dlq    — dead-letter queue for failed messages
  *
  * Publisher usage (api archetype):
- *   await this.rabbitmq.publish('order.created', { orderId }, correlationId);
+ *   await this.rabbitmq.publish('order.created', { orderId });
+ *   // correlationId is taken from CorrelationContext when omitted
  *
  * Consumer usage (worker archetype):
  *   // In onModuleInit — BEFORE onApplicationBootstrap starts consuming:
@@ -82,7 +84,7 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
       eventId: randomUUID(),
       type,
       occurredAt: new Date().toISOString(),
-      correlationId,
+      correlationId: CorrelationContext.resolve(correlationId),
       payload,
     };
 
@@ -189,7 +191,14 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
         return;
       }
 
-      await handler(event);
+      await CorrelationContext.runAsync(
+        CorrelationContext.resolve(
+          event.correlationId ?? message.properties?.correlationId?.toString(),
+        ),
+        async () => {
+          await handler(event);
+        },
+      );
       await this.redis.set(dedupeKey, '1', 86400);
       this.channel.ack(message);
     } catch (error) {

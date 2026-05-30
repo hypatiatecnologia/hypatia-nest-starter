@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { CorrelationContext } from '../../common/correlation/correlation.context';
 import { RabbitMqService } from '../../rabbitmq/rabbitmq.service';
 import { HypatiaEvent } from '../../rabbitmq/rabbitmq.types';
 
@@ -24,6 +25,8 @@ export class ExampleEventConsumer implements OnModuleInit {
   }
 
   private async handleExampleCreated(event: HypatiaEvent): Promise<void> {
-    this.logger.log(`Received ${event.type} (${event.eventId})`);
+    this.logger.log(
+      `Received ${event.type} (${event.eventId}) correlationId=${CorrelationContext.get()}`,
+    );
   }
 }
