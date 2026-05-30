@@ -10,12 +10,15 @@ describe('HealthController', () => {
   let controller: HealthController;
   let prisma: { $queryRaw: jest.Mock };
   let redis: { get: jest.Mock; set: jest.Mock };
-  let rabbitmq: { isEnabled: jest.Mock };
+  let rabbitmq: { isEnabled: jest.Mock; checkConnection: jest.Mock };
 
   beforeEach(async () => {
     prisma = { $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]) };
     redis = { get: jest.fn().mockResolvedValue('1'), set: jest.fn() };
-    rabbitmq = { isEnabled: jest.fn().mockReturnValue(true) };
+    rabbitmq = {
+      isEnabled: jest.fn().mockReturnValue(true),
+      checkConnection: jest.fn().mockReturnValue(true),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [HealthController],
@@ -37,7 +40,7 @@ describe('HealthController', () => {
     expect(body.status).toBe('ok');
     expect(body.checks.postgres).toBe('ok');
     expect(body.checks.redis).toBe('ok');
-    expect(body.checks.rabbitmq).toBe('configured');
+    expect(body.checks.rabbitmq).toBe('ok');
     expect(res.status).not.toHaveBeenCalled();
   });
 
@@ -61,5 +64,26 @@ describe('HealthController', () => {
     expect(body.status).toBe('degraded');
     expect(body.checks.redis).toBe('error');
     expect(res.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
+  });
+
+  it('returns degraded when rabbitmq is enabled but disconnected', async () => {
+    rabbitmq.checkConnection.mockReturnValue(false);
+    const res = { status: jest.fn().mockReturnThis() } as unknown as Response;
+
+    const body = await controller.check(res);
+
+    expect(body.status).toBe('degraded');
+    expect(body.checks.rabbitmq).toBe('error');
+    expect(res.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
+  });
+
+  it('reports rabbitmq as disabled when messaging is off', async () => {
+    rabbitmq.isEnabled.mockReturnValue(false);
+    const res = { status: jest.fn().mockReturnThis() } as unknown as Response;
+
+    const body = await controller.check(res);
+
+    expect(body.status).toBe('ok');
+    expect(body.checks.rabbitmq).toBe('disabled');
   });
 });

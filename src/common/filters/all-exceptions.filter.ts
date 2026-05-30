@@ -7,13 +7,14 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { resolveErrorCode } from '../errors/domain.exception';
 import { CorrelationContext } from '../correlation/correlation.context';
 
 /**
  * Normalizes error responses across the API.
  *
- * HttpException → status and message from the exception.
- * Everything else → 500 with a generic message (details logged server-side).
+ * HttpException → status, message, and stable `code` (snake_case).
+ * Everything else → 500 with code `internal_error` (details logged server-side).
  */
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -28,6 +29,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
 
     const body = this.resolveBody(exception);
+    const code = resolveErrorCode(exception);
     const correlationId = request.correlationId ?? CorrelationContext.get();
 
     if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
@@ -39,6 +41,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     response.status(status).json({
       statusCode: status,
+      code,
       ...body,
       ...(correlationId ? { correlationId } : {}),
       path: request.url,
@@ -46,7 +49,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     });
   }
 
-  private resolveBody(exception: unknown): { message: string | string[]; error?: string } {
+  private resolveBody(exception: unknown): {
+    message: string | string[];
+    error?: string;
+    details?: Record<string, unknown>;
+  } {
     if (!(exception instanceof HttpException)) {
       return { message: 'Internal server error', error: 'Internal Server Error' };
     }
@@ -61,6 +68,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return {
         message: (payload.message as string | string[]) ?? exception.message,
         ...(payload.error ? { error: String(payload.error) } : {}),
+        ...(payload.details && typeof payload.details === 'object'
+          ? { details: payload.details as Record<string, unknown> }
+          : {}),
       };
     }
 

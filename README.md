@@ -14,6 +14,19 @@ Extracted from the [data-vault](https://github.com/hypatia/data-vault) (Hades) i
 
 See `archetypes/api.env.example` and `archetypes/worker.env.example`.
 
+## Onboarding (novos devs)
+
+Structured learning path in Portuguese:
+
+| Doc | Content |
+| --- | --- |
+| [docs/onboarding/ONBOARDING.md](docs/onboarding/ONBOARDING.md) | 4-week roadmap + hands-on exercises |
+| [docs/onboarding/GUIA-RAPIDO.md](docs/onboarding/GUIA-RAPIDO.md) | Daily reference — commands, new module |
+| [docs/onboarding/GLOSSARIO.md](docs/onboarding/GLOSSARIO.md) | Pantheon and NestJS glossary |
+| [docs/onboarding/MAPA-MENTAL.md](docs/onboarding/MAPA-MENTAL.md) | Request → event flow diagrams |
+
+Cursor command `/onboard` automates local setup; use both for first-time contributors.
+
 ## Codebase tour
 
 Source files include onboarding comments — start with:
@@ -149,7 +162,9 @@ src/
 | `npm run create-service` | Scaffold new repo from starter |
 | `npm run prisma:migrate` | Create migration (dev) |
 | `npm run lint:ci` | ESLint |
-| `npm test` | Unit tests |
+| `npm test` | Unit + e2e tests |
+| `npm run test:ci` | Related tests only (lint-staged / CI) |
+| `npm run test:cov` | Tests with coverage report |
 
 ## Docker (full stack)
 

@@ -74,6 +74,15 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
     return this.config.get('rabbitmqMode', { infer: true }) !== 'off';
   }
 
+  /** Active connectivity probe for health checks when messaging is enabled. */
+  checkConnection(): boolean {
+    if (!this.isEnabled()) {
+      return false;
+    }
+
+    return Boolean(this.connection?.isConnected());
+  }
+
   async publish<T>(type: string, payload: T, correlationId?: string): Promise<void> {
     if (!this.isEnabled()) {
       this.logger.debug(`Skipped publish for ${type} (RabbitMQ off)`);
@@ -161,11 +170,9 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
     }
 
     const queue = this.config.get('rabbitmqQueue', { infer: true });
-    const { consumerTag } = await channel.consume(
-      queue,
-      (message) => this.handleMessage(message),
-      { noAck: false },
-    );
+    const { consumerTag } = await channel.consume(queue, (message) => this.handleMessage(message), {
+      noAck: false,
+    });
     this.consumerTag = consumerTag;
     this.logger.log(`Consuming queue ${queue} (${this.handlers.size} handler(s))`);
   }

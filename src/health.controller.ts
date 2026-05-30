@@ -8,9 +8,8 @@ import { RabbitMqService } from './rabbitmq/rabbitmq.service';
 /**
  * Liveness/readiness probe for orchestrators (Docker, Dokploy, k8s).
  *
- * Returns HTTP 503 with `degraded` when Postgres or Redis is unreachable.
- * RabbitMQ reports `configured` vs `disabled` — extend with an active
- * connectivity check if your deployment requires it.
+ * Returns HTTP 503 with `degraded` when Postgres, Redis, or RabbitMQ (when enabled)
+ * is unreachable.
  */
 @ApiTags('health')
 @Controller('health')
@@ -28,10 +27,10 @@ export class HealthController {
     const checks = {
       postgres: await this.checkPostgres(),
       redis: await this.checkRedis(),
-      rabbitmq: this.rabbitmq.isEnabled() ? 'configured' : 'disabled',
+      rabbitmq: this.checkRabbitmq(),
     };
 
-    const ok = checks.postgres === 'ok' && checks.redis === 'ok';
+    const ok = this.isHealthy(checks);
     if (!ok) {
       res.status(HttpStatus.SERVICE_UNAVAILABLE);
     }
@@ -41,6 +40,12 @@ export class HealthController {
       checks,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  private isHealthy(checks: Record<string, string>): boolean {
+    const coreOk = checks.postgres === 'ok' && checks.redis === 'ok';
+    const rabbitOk = checks.rabbitmq === 'ok' || checks.rabbitmq === 'disabled';
+    return coreOk && rabbitOk;
   }
 
   private async checkPostgres(): Promise<string> {
@@ -62,5 +67,13 @@ export class HealthController {
     } catch {
       return 'error';
     }
+  }
+
+  private checkRabbitmq(): string {
+    if (!this.rabbitmq.isEnabled()) {
+      return 'disabled';
+    }
+
+    return this.rabbitmq.checkConnection() ? 'ok' : 'error';
   }
 }

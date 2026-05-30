@@ -1,4 +1,5 @@
 import { ArgumentsHost, BadRequestException, HttpStatus } from '@nestjs/common';
+import { DomainException } from '../errors/domain.exception';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 
 describe('AllExceptionsFilter', () => {
@@ -27,8 +28,26 @@ describe('AllExceptionsFilter', () => {
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         statusCode: HttpStatus.BAD_REQUEST,
+        code: 'invalid_input',
         message: 'invalid input',
         path: '/example',
+      }),
+    );
+  });
+
+  it('includes stable code from DomainException', () => {
+    const { host, json } = createHost();
+
+    filter.catch(
+      new DomainException('order_not_found', 'Order missing', HttpStatus.NOT_FOUND),
+      host,
+    );
+
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 'order_not_found',
+        message: 'Order missing',
+        statusCode: HttpStatus.NOT_FOUND,
       }),
     );
   });
@@ -45,7 +64,7 @@ describe('AllExceptionsFilter', () => {
     );
   });
 
-  it('maps unknown errors to 500', () => {
+  it('maps unknown errors to 500 with internal_error code', () => {
     const { host, status, json } = createHost();
 
     filter.catch(new Error('unexpected'), host);
@@ -54,6 +73,7 @@ describe('AllExceptionsFilter', () => {
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        code: 'internal_error',
         message: 'Internal server error',
       }),
     );

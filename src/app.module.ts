@@ -6,6 +6,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'crypto';
 import configuration, { validateConfig } from './config/configuration';
 import { CORRELATION_ID_HEADER } from './common/correlation/correlation.constants';
+import { HttpClientModule } from './http/http-client.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { RabbitMqModule } from './rabbitmq/rabbitmq.module';
@@ -49,6 +50,7 @@ import { HealthController } from './health.controller';
     }),
     // Global rate limit: 100 requests per 60s per IP (tune for your service).
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    HttpClientModule,
     PrismaModule,
     RedisModule,
     RabbitMqModule,

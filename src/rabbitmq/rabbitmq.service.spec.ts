@@ -40,13 +40,8 @@ describe('RabbitMqService', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot({ load: [configuration], validate: validateConfig }),
-      ],
-      providers: [
-        RabbitMqService,
-        { provide: RedisService, useValue: redis },
-      ],
+      imports: [ConfigModule.forRoot({ load: [configuration], validate: validateConfig })],
+      providers: [RabbitMqService, { provide: RedisService, useValue: redis }],
     }).compile();
 
     service = module.get(RabbitMqService);
@@ -62,6 +57,7 @@ describe('RabbitMqService', () => {
     it('skips publish when RabbitMQ is disabled', async () => {
       await expect(service.publish('example.created', { ok: true })).resolves.toBeUndefined();
       expect(service.isEnabled()).toBe(false);
+      expect(service.checkConnection()).toBe(false);
     });
   });
 
