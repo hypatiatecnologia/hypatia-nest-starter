@@ -1,5 +1,6 @@
-import { Controller, Get } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
+import { ApiResponse, ApiTags } from '@nestjs/swagger';
+import { Response } from 'express';
 import { PrismaService } from './prisma/prisma.service';
 import { RedisService } from './redis/redis.service';
 import { RabbitMqService } from './rabbitmq/rabbitmq.service';
@@ -7,7 +8,7 @@ import { RabbitMqService } from './rabbitmq/rabbitmq.service';
 /**
  * Liveness/readiness probe for orchestrators (Docker, Dokploy, k8s).
  *
- * Returns `degraded` when Postgres or Redis is unreachable.
+ * Returns HTTP 503 with `degraded` when Postgres or Redis is unreachable.
  * RabbitMQ reports `configured` vs `disabled` — extend with an active
  * connectivity check if your deployment requires it.
  */
@@ -21,7 +22,9 @@ export class HealthController {
   ) {}
 
   @Get()
-  async check() {
+  @ApiResponse({ status: 200, description: 'All dependencies healthy' })
+  @ApiResponse({ status: 503, description: 'One or more dependencies unreachable' })
+  async check(@Res({ passthrough: true }) res: Response) {
     const checks = {
       postgres: await this.checkPostgres(),
       redis: await this.checkRedis(),
@@ -29,6 +32,10 @@ export class HealthController {
     };
 
     const ok = checks.postgres === 'ok' && checks.redis === 'ok';
+    if (!ok) {
+      res.status(HttpStatus.SERVICE_UNAVAILABLE);
+    }
+
     return {
       status: ok ? 'ok' : 'degraded',
       checks,

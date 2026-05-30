@@ -5,6 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { AppConfig } from './config/configuration';
 
 /**
@@ -22,8 +23,13 @@ import { AppConfig } from './config/configuration';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
 
+  // Graceful shutdown on SIGTERM/SIGINT (Docker, k8s rolling deploys).
+  app.enableShutdownHooks();
+
   // Structured JSON logs via pino; sensitive headers are redacted in AppModule.
   app.useLogger(app.get(Logger));
+
+  app.useGlobalFilters(new AllExceptionsFilter());
 
   // Security headers (CSP, HSTS, etc.).
   app.use(helmet());

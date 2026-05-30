@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
-import configuration from './config/configuration';
+import configuration, { validateConfig } from './config/configuration';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { RabbitMqModule } from './rabbitmq/rabbitmq.module';
@@ -27,7 +27,7 @@ import { HealthController } from './health.controller';
 @Module({
   imports: [
     // Loads typed env vars globally — inject ConfigService<AppConfig> anywhere.
-    ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
+    ConfigModule.forRoot({ isGlobal: true, load: [configuration], validate: validateConfig }),
     LoggerModule.forRoot({
       pinoHttp: {
         transport:
