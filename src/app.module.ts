@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'crypto';
-import configuration, { validateConfig } from './config/configuration';
+import loadConfiguration, { validateConfig } from './config/configuration';
 import { CORRELATION_ID_HEADER } from './common/correlation/correlation.constants';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { HttpClientModule } from './http/http-client.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
@@ -30,7 +31,11 @@ import { HealthController } from './health.controller';
 @Module({
   imports: [
     // Loads typed env vars globally — inject ConfigService<AppConfig> anywhere.
-    ConfigModule.forRoot({ isGlobal: true, load: [configuration], validate: validateConfig }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [loadConfiguration],
+      validate: validateConfig,
+    }),
     LoggerModule.forRoot({
       pinoHttp: {
         transport:
@@ -44,8 +49,19 @@ import { HealthController } from './health.controller';
           return value ?? randomUUID();
         },
         customProps: (req) => ({ correlationId: req.id }),
-        // Never log bearer tokens or other credentials.
-        redact: ['req.headers.authorization'],
+        redact: {
+          paths: [
+            'req.headers.authorization',
+            'req.body.password',
+            'req.body.cpf',
+            'req.body.token',
+            'req.body.accessToken',
+            'req.body.refreshToken',
+            'req.body.creditCard',
+            'req.body.apiKey',
+          ],
+          censor: '[REDACTED]',
+        },
       },
     }),
     // Global rate limit: 100 requests per 60s per IP (tune for your service).
@@ -60,6 +76,8 @@ import { HealthController } from './health.controller';
   providers: [
     // Applies ThrottlerGuard to every route automatically.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Registered via DI so AllExceptionsFilter can inject PinoLogger.
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })
 export class AppModule {}

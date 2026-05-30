@@ -1,9 +1,22 @@
 import { ArgumentsHost, BadRequestException, HttpStatus } from '@nestjs/common';
+import { PinoLogger } from 'nestjs-pino';
 import { DomainException } from '../errors/domain.exception';
 import { AllExceptionsFilter } from './all-exceptions.filter';
 
+function createMockLogger() {
+  return {
+    error: jest.fn(),
+    warn: jest.fn(),
+    log: jest.fn(),
+    info: jest.fn(),
+    debug: jest.fn(),
+  } as unknown as PinoLogger;
+}
+
 describe('AllExceptionsFilter', () => {
-  const filter = new AllExceptionsFilter();
+  function createFilter() {
+    return new AllExceptionsFilter(createMockLogger());
+  }
 
   function createHost(correlationId?: string) {
     const json = jest.fn();
@@ -22,7 +35,7 @@ describe('AllExceptionsFilter', () => {
   it('maps HttpException to its status code', () => {
     const { host, status, json } = createHost();
 
-    filter.catch(new BadRequestException('invalid input'), host);
+    createFilter().catch(new BadRequestException('invalid input'), host);
 
     expect(status).toHaveBeenCalledWith(HttpStatus.BAD_REQUEST);
     expect(json).toHaveBeenCalledWith(
@@ -38,7 +51,7 @@ describe('AllExceptionsFilter', () => {
   it('includes stable code from DomainException', () => {
     const { host, json } = createHost();
 
-    filter.catch(
+    createFilter().catch(
       new DomainException('order_not_found', 'Order missing', HttpStatus.NOT_FOUND),
       host,
     );
@@ -55,7 +68,7 @@ describe('AllExceptionsFilter', () => {
   it('includes correlationId in error responses when present', () => {
     const { host, json } = createHost('corr-abc');
 
-    filter.catch(new BadRequestException('invalid input'), host);
+    createFilter().catch(new BadRequestException('invalid input'), host);
 
     expect(json).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -67,7 +80,7 @@ describe('AllExceptionsFilter', () => {
   it('maps unknown errors to 500 with internal_error code', () => {
     const { host, status, json } = createHost();
 
-    filter.catch(new Error('unexpected'), host);
+    createFilter().catch(new Error('unexpected'), host);
 
     expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
     expect(json).toHaveBeenCalledWith(
@@ -76,6 +89,19 @@ describe('AllExceptionsFilter', () => {
         code: 'internal_error',
         message: 'Internal server error',
       }),
+    );
+  });
+
+  it('logs 5xx errors via PinoLogger with structured context', () => {
+    const mockLogger = createMockLogger();
+    const filter = new AllExceptionsFilter(mockLogger);
+    const { host } = createHost('trace-xyz');
+
+    filter.catch(new Error('db connection lost'), host);
+
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ correlationId: 'trace-xyz' }),
+      expect.stringContaining('internal error'),
     );
   });
 });

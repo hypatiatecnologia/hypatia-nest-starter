@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 /**
  * Typed application configuration loaded once at startup via ConfigModule.
  *
@@ -24,77 +26,59 @@ export interface AppConfig {
   rabbitmqQueue: string;
 }
 
-function parseRabbitMqMode(raw: string | undefined): RabbitMqMode {
-  if (raw === 'publisher' || raw === 'consumer') return raw;
-  return 'off';
-}
+const envSchema = z
+  .object({
+    PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    NODE_ENV: z.string().default('development'),
+    SERVICE_NAME: z.string().min(1, 'SERVICE_NAME is required'),
+    DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+    REDIS_URL: z.string().min(1, 'REDIS_URL is required').default('redis://localhost:6379'),
+    RABBITMQ_URL: z.string().default('amqp://guest:guest@localhost:5672'),
+    RABBITMQ_MODE: z.enum(['off', 'publisher', 'consumer']).default('off'),
+    RABBITMQ_EXCHANGE: z.string().default('hypatia.events'),
+    RABBITMQ_DLX_EXCHANGE: z.string().default('hypatia.events.dlx'),
+    RABBITMQ_QUEUE: z.string().default('hypatia-service.events'),
+  })
+  .superRefine((env, ctx) => {
+    if (env.RABBITMQ_MODE !== 'off' && !env.RABBITMQ_URL?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['RABBITMQ_URL'],
+        message: 'RABBITMQ_URL is required when RABBITMQ_MODE is publisher or consumer',
+      });
+    }
+  });
 
-function loadConfiguration(): AppConfig {
+function mapToAppConfig(env: z.infer<typeof envSchema>): AppConfig {
   return {
-    port: parseInt(process.env.PORT ?? '3000', 10),
-    nodeEnv: process.env.NODE_ENV ?? 'development',
-    serviceName: process.env.SERVICE_NAME ?? 'hypatia-service',
-    databaseUrl: process.env.DATABASE_URL ?? '',
-    redisUrl: process.env.REDIS_URL ?? 'redis://localhost:6379',
-    rabbitmqUrl: process.env.RABBITMQ_URL ?? 'amqp://guest:guest@localhost:5672',
-    rabbitmqMode: parseRabbitMqMode(process.env.RABBITMQ_MODE),
-    // Shared topic exchange across the Hypatia ecosystem — routing key = event type.
-    rabbitmqExchange: process.env.RABBITMQ_EXCHANGE ?? 'hypatia.events',
-    rabbitmqDlxExchange: process.env.RABBITMQ_DLX_EXCHANGE ?? 'hypatia.events.dlx',
-    // Each service should use its own queue name (e.g. athena-core.events).
-    rabbitmqQueue: process.env.RABBITMQ_QUEUE ?? 'hypatia-service.events',
+    port: env.PORT,
+    nodeEnv: env.NODE_ENV,
+    serviceName: env.SERVICE_NAME,
+    databaseUrl: env.DATABASE_URL,
+    redisUrl: env.REDIS_URL,
+    rabbitmqUrl: env.RABBITMQ_URL,
+    rabbitmqMode: env.RABBITMQ_MODE,
+    rabbitmqExchange: env.RABBITMQ_EXCHANGE,
+    rabbitmqDlxExchange: env.RABBITMQ_DLX_EXCHANGE,
+    rabbitmqQueue: env.RABBITMQ_QUEUE,
   };
 }
 
-export default loadConfiguration;
-
-/** Fail-fast validation — called by ConfigModule before the app boots. */
-export function validateAppConfig(config: AppConfig): AppConfig {
-  const errors: string[] = [];
-
-  if (!config.databaseUrl?.trim()) {
-    errors.push('DATABASE_URL is required');
+/**
+ * Validates raw environment variables (UPPER_SNAKE_CASE) via Zod.
+ * Called by ConfigModule.forRoot({ validate }) before the app boots.
+ */
+export function validateConfig(rawEnv: Record<string, unknown>): AppConfig {
+  const result = envSchema.safeParse(rawEnv);
+  if (!result.success) {
+    const details = result.error.issues
+      .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
+      .join('\n');
+    throw new Error(`Configuration validation failed:\n${details}`);
   }
-
-  if (!config.redisUrl?.trim()) {
-    errors.push('REDIS_URL is required');
-  }
-
-  if (!Number.isInteger(config.port) || config.port < 1 || config.port > 65535) {
-    errors.push('PORT must be an integer between 1 and 65535');
-  }
-
-  if (!config.serviceName?.trim()) {
-    errors.push('SERVICE_NAME is required');
-  }
-
-  if (config.rabbitmqMode !== 'off') {
-    if (!config.rabbitmqUrl?.trim()) {
-      errors.push('RABBITMQ_URL is required when RABBITMQ_MODE is publisher or consumer');
-    }
-    if (!config.rabbitmqExchange?.trim()) {
-      errors.push('RABBITMQ_EXCHANGE is required when RabbitMQ is enabled');
-    }
-    if (!config.rabbitmqDlxExchange?.trim()) {
-      errors.push('RABBITMQ_DLX_EXCHANGE is required when RabbitMQ is enabled');
-    }
-    if (!config.rabbitmqQueue?.trim()) {
-      errors.push('RABBITMQ_QUEUE is required when RabbitMQ is enabled');
-    }
-  }
-
-  if (errors.length > 0) {
-    throw new Error(`Configuration validation failed:\n${errors.map((e) => `  - ${e}`).join('\n')}`);
-  }
-
-  return config;
+  return mapToAppConfig(result.data);
 }
 
-/**
- * NestJS validate hook receives raw env vars — re-parse via loadConfiguration()
- * so validation runs against the same typed shape used at runtime.
- */
-export function validateConfig(config: Record<string, unknown>): AppConfig {
-  void config;
-  return validateAppConfig(loadConfiguration());
+export default function loadConfiguration(): AppConfig {
+  return validateConfig(process.env as Record<string, unknown>);
 }

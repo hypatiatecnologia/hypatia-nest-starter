@@ -6,7 +6,6 @@ import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { correlationMiddleware } from './common/correlation/correlation.middleware';
-import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { AppConfig } from './config/configuration';
 
 /**
@@ -30,10 +29,8 @@ async function bootstrap() {
   // Correlation id before pino so access logs include the same id as handlers.
   app.use(correlationMiddleware);
 
-  // Structured JSON logs via pino; sensitive headers are redacted in AppModule.
+  // Structured JSON logs via pino; sensitive fields are redacted in AppModule.
   app.useLogger(app.get(Logger));
-
-  app.useGlobalFilters(new AllExceptionsFilter());
 
   // Security headers (CSP, HSTS, etc.).
   app.use(helmet());
