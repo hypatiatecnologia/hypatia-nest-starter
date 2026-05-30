@@ -1,0 +1,76 @@
+# =============================================================================
+# .cursorignore
+# =============================================================================
+# Tudo aqui fica invisível para o Cursor (chat, agent, indexação).
+# Sintaxe idêntica a .gitignore.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 1) SEGREDOS E CREDENCIAIS
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_dsa
+id_ed25519
+id_ecdsa
+*.ppk
+.ssh/
+.aws/credentials
+.aws/config
+.gcp/
+gcp-key*.json
+service-account*.json
+.azure/
+.kube/config
+kubeconfig*
+secrets/
+credentials/
+.vault_pass
+.netrc
+.npmrc
+.pypirc
+.git-credentials
+*.token
+*-token.txt
+auth.json
+
+# -----------------------------------------------------------------------------
+# 2) CONFIGS DE PRODUÇÃO E AMBIENTE
+# -----------------------------------------------------------------------------
+config/prod*.json
+config/production*.json
+application-prod.properties
+application-prod.yml
+application-production.*
+appsettings.Production.json
+terraform.tfvars
+*.tfstate
+*.tfstate.backup
+.terraform/
+
+# -----------------------------------------------------------------------------
+# 3) DUMPS DE BANCO E BACKUPS COM PII POTENCIAL
+# -----------------------------------------------------------------------------
+*.bak
+*.dump
+db_dump_*
+*-dump.sql      # dumps de produção; arquivos de migração regulares NÃO casam com este pattern
+logs/
+*.log
+
+# -----------------------------------------------------------------------------
+# 4) MCP CONFIG (apenas se tem tokens literais — preferir ${env:VAR}; ver §7.8)
+# -----------------------------------------------------------------------------
+# .cursor/mcp.json

@@ -1,0 +1,57 @@
+---
+description: Testes — TDD, relatório após rodar suite. Não substitui company-patterns nem scripts do package.json.
+globs:
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.spec.ts"
+  - "**/*.spec.tsx"
+  - "**/*Test.java"
+  - "**/*Tests.java"
+  - "**/*_test.go"
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/*Test.php"
+  - "**/__tests__/**"
+alwaysApply: false
+---
+
+# Tester — geração e disciplina de testes
+
+Ativar quando a tarefa for **escrita**, **ampliação** ou **revisão** de testes automatizados. Preferir **TDD** ao adicionar lógica nova: red → green → refactor.
+
+Bullets **Java / Spring** e **Kotlin** só se o repositório contiver esse código ou o usuário pedir explicitamente stack JVM; caso contrário **ignore** essas linhas. Spring Boot aplicável → overlay [java-spring/rule.mdc](mdc:../java-spring/rule.mdc).
+
+## Convenções por stack
+- **TypeScript / Node (API)**: Vitest ou Jest; `describe`/`it`; Arrange–Act–Assert; sem `any`. HTTP: `supertest` ou `fastify.inject` conforme framework. Módulos Idea: alinhar mocks a [company-patterns/rule.mdc](mdc:../company-patterns/rule.mdc). OpenAPI: [openapi-contracts/rule.mdc](mdc:../openapi-contracts/rule.mdc) se o repo versionar spec.
+- **React (DOM)**: Testing Library + Vitest/Jest; `render` + `user-event`; consultas por role/label/texto; MSW na fronteira de rede quando aplicável.
+- **React Native**: React Native Testing Library; mocks explícitos de módulos nativos; poucos snapshots puros ([typescript-react-native/rule.mdc](mdc:../typescript-react-native/rule.mdc)).
+- **Java / Spring**: JUnit 5 + AssertJ; integração com `@SpringBootTest` + Testcontainers quando tocar migrações/DB real; HTTP com `MockMvc`. **Não** mocks de DB quando o código depende do schema/migrações.
+- **Kotlin**: Kotest ou JUnit 5; estilo `shouldBe`/Kotest se o projeto já o usar.
+- **Go**: table-driven + `t.Run`; stdlib; `testify` só se o repo já usar.
+- **Python**: pytest; fixtures em `conftest.py`; `parametrize` para variantes.
+
+## Cenários a cobrir (por funcionalidade nova, quando aplicável)
+Caminho feliz · entrada inválida · valores à fronteira · timeout · erros HTTP 4xx/5xx onde exista superfície API · recuperação ou fallback · **concorrência** se o comportamento depender dela.
+
+## Após gerar ou alterar testes
+**Descobrir o runner antes de executar** — inspecionar na seguinte ordem:
+1. `package.json` → campo `scripts.test` (Node/TS).
+2. `Makefile` → targets `test`, `test-unit`, `test-integration`.
+3. `pom.xml` / `build.gradle` → `./mvnw test` ou `./gradlew test` (Java/Kotlin).
+4. `go.mod` presente → `go test ./...`.
+5. `pyproject.toml` / `setup.cfg` / `pytest.ini` → `pytest`.
+6. Se nenhum for encontrado: perguntar ao usuário antes de executar.
+
+Correr os testes **uma vez** com o comando descoberto e reportar ao usuário:
+
+1. Paths dos arquivos criados ou alterados.  
+2. Contagem ou resumo **pass / fail**.  
+3. Delta de **cobertura** — se configurado, reportar o valor atual e avaliar contra os thresholds:
+   - **Mínimo aceitável por padrão:** 80% de linha/statement em código de domínio e casos de uso; 70% em adaptadores e infra.
+   - Se o projeto já definiu threshold no config (`vitest.config`, `jest.config`, `pytest.ini`, `pyproject.toml`) — usar o valor do projeto; nunca reduzir threshold existente.
+   - Se a cobertura ficar abaixo do mínimo após a alteração: reportar como ❌ e listar os caminhos não cobertos antes de concluir.
+4. **Flakes**: execuções intermitentes ou ordem-dependência observada.
+
+## Notas
+- Alinhar **nomes de arquivos, pastas e runners** aos que o repositório já usa; não impor novo runner sem pedido explícito.
+- Manter código de produção apenas o necessário para testabilidade limpa — sem “backdoors” só para facilitar mocks.

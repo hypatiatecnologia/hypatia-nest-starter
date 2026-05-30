@@ -1,0 +1,37 @@
+---
+description: Erros estruturados, logging correlacionado e proibição de try/catch silencioso
+alwaysApply: true
+---
+
+# Erros e logging
+
+Complementar [architecture/rule.mdc](mdc:../architecture/rule.mdc), [cognitive-complexity/rule.mdc](mdc:../cognitive-complexity/rule.mdc) e, em TS/JS, [typescript-security.mdc](mdc:../security/typescript-security.mdc). Para arquivos/rotas, ver [naming-and-files/rule.mdc](mdc:../naming-and-files/rule.mdc).
+
+## Tratamento de erros (todas as stacks)
+- **Proibido** `catch (e)` / bloco gigante sem classificar o erro nem re-lançar; **preferir** deixar propagar até o boundary da framework se não houver recuperação local.
+- **Obrigatório** erro de negócio com **código estável** legível por máquinas (string ou enum), separado do HTTP status quando ambos coexistem; mensagem ao usuário apenas **segura** para exposição externa ([typescript-security.mdc](mdc:../security/typescript-security.mdc)).
+- **Proibido** anexar stack trace ou mensagens SQL/internas a resposta HTTP público/cliente mobile.
+- Alinhar com o projeto: RFC 7807 / Problem+JSON, envelope JSON interno ou errors do ORM apenas **mapeados** no boundary — não expor verbatim.
+
+### Estrutura canônica de erro de domínio
+
+Todo erro de negócio deve ter: `code` (string estável, snake_case), `message` (segura para o cliente) e opcionalmente `details` (contexto não sensível). O HTTP status é derivado do `code` no boundary — **nunca hardcoded na camada de domínio**.
+
+Exemplos (TypeScript, RFC 7807): [`examples/04-errors-and-logging.example.md`](mdc:../../examples/04-errors-and-logging.example.md).
+
+### Por plataforma (quando a stack se aplicar)
+- **Node Express**: `express-async-errors` + middleware de erro central; ver [node-express/rule.mdc](mdc:../node-express/rule.mdc).
+- **Node Fastify/Nest**: handler global único ou exception filter; mesmo shape de erro em todos os controllers.
+- **Spring**: `@ControllerAdvice` ou `@ExceptionHandler`; não try/catch em cada método sem necessidade — preferir hierarquia de exceptions de domínio.
+- **Go**: unwrap com `%w`; `errors.Is`/`As` no boundary; erro HTTP só no handler por mapeamento.
+- **React DOM**: React **Error Boundary** na raiz ou por rota para falhas de render; relatório a serviço (Sentry, etc.) com filtros de dados sensíveis.
+- **React Native**: equivalente onde suportado; tela de fallback sem expor dados sensíveis no log cliente.
+
+## Logging
+- **Obrigatório** formato **estruturado** quando o projeto já usa JSON logs (campos estáveis — ex. `msg`, `err`, nível, `route`, **`request_id`/`trace_id`** quando existirem headers OpenTelemetry/W3C).
+- **Proibido** registrar passwords, tokens, refresh tokens ou PII não mascarado; seguir filtros nos SDKs (`beforeSend`/redaction pipelines).
+- Níveis: `trace`/`debug`/`info`/`warn`/`error`/`fatal` com critério; sem `console.log` em produção só por conveniência (usar adaptador oficial da stack).
+
+## Documentação inline (complexidade apenas)
+- **Obrigatório** documentar (**JSDoc**/**TSDoc**/**KDoc**/**doc comment** idiomatic) funções públicas **não óbvias** (contratos incomuns, invariantes de domínio, parâmetros de segurança).
+- **Proibido** ruído: comentários que apenas repetem o nome da função ou o comportamento já explícito no tipo.

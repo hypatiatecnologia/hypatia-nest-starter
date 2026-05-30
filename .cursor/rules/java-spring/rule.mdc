@@ -1,0 +1,54 @@
+---
+description: Spring Boot — JPA, Feign, observabilidade. Não usar em Node/PHP sem JVM no repo.
+globs:
+  - pom.xml
+  - build.gradle
+  - build.gradle.kts
+  - "**/src/main/java/**/*.java"
+  - "**/application.yml"
+  - "**/application.yaml"
+  - "**/application.properties"
+alwaysApply: false
+---
+
+# Java / Kotlin + Spring Boot
+
+Ativar em módulos **Maven/Gradle** com Spring Boot. Segurança: [java-security.mdc](mdc:../security/java-security.mdc). Testes (JUnit/Testcontainers/MockMvc): [tester/rule.mdc](mdc:../tester/rule.mdc). Contratos: [openapi-contracts/rule.mdc](mdc:../openapi-contracts/rule.mdc). Erros HTTP: [errors-and-logging/rule.mdc](mdc:../errors-and-logging/rule.mdc); camadas SOLID: [architecture/rule.mdc](mdc:../architecture/rule.mdc).
+
+## Spring — convenções de camada
+- **Injeção:** só constructor injection · **Proibido** `@Autowired` em campo.
+- **Transações:** `@Transactional` na **camada de serviço / caso de uso** — não em `@RestController` nem em repos por padrão.
+- Controllers magros: validar entrada, delegar ao serviço, mapear resposta (**sem** regra de negócio pesada).
+- **`@RestControllerAdvice`** para erros globais mapeados ao contrato público (**sem stack** ao cliente) — ver `errors-and-logging`.
+
+## JPA / persistência
+- Queries sempre através de **API parametrizada** (repos/query methods); ver java-security contra concat dinâmica.
+- Evitar **N+1**: `@EntityGraph` ou fetch joins quando relações são lidas em ciclo aplicacional.
+- **Paginação obrigatória** onde o resultado pode ultrapassar ordem dos ~100–1000 registros esperados pelo domínio — `Pageable` (ou política já fixada no projeto).
+- `saveAndFlush` só quando existe requisito real de IDs ou flush imediato; caso contrário deixar **flush ao commit**.
+- Associações **lazy por padrão**; **eager** só com decisão explícita e justificável.
+
+## Resiliência (clients HTTP externos, ex. Feign)
+- Configurar **timeouts** de connect e read para **todo** cliente declarado (`feign.client.config` ou equivalente no stack atual).
+- Onde existir **`@CircuitBreaker`** (resilience4j ou stack do repo): timeouts + **`fallbackMethod`** para degradação controlada em dependências opcionais.
+- **`@Retry`** com backoff **só para erros claramente transitórios**, não como substituto de idempotência.
+- **`@Bulkhead`** nos caminhos críticos onde isolamento entre pools evita starvation (quando o projeto já adota esse padrão).
+
+## Validação e erros de domínio
+- **`@Valid`** (Bean Validation) em `@RequestBody` e parâmetros de fronteira segundo o projeto (`@Validated` nos grupos se preciso).
+- Regras de domínio fora Bean Validation por **constraints anotadas** ou validação explicitamente no serviço — invariantes bem nomeadas.
+- Lançar exceções/representações de domínio; mapeamento final em advice → `ResponseEntity` / ProblemDetail conforme convenção adotada (**códigos estáveis**, sem vazar detalhe interno).
+
+## Observabilidade
+- Preferir métricas e naming **consistentes com Micrometer** se o projeto usa Spring Boot actuator/Micrometer; temporizar ou marcar métodos externos críticos conforme hábitos do repo.
+- Logs estruturados (ex. formato JSON onde configurado); **correlation id** (`requestId` / trace) em **MDC** alinhando com gateway ou OpenTelemetry quando existente.
+- Dados sensíveis em logs: seguir estritamente [java-security.mdc](mdc:../security/java-security.mdc).
+
+## Kotlin (só código `.kt`)
+- Preferir **`data class`** para DTOs quando idiomático; **`sealed` types** para hierarquia de erro/estado público onde reduz branching inseguro.
+- **Evitar `!!`;** prefer `?.let` / `requireNotNull` / early return.
+- Fluxo novo assíncrono: preferir modelo assíncrono idiomático do projeto (**coroutines Kotlin** onde já é standard) em vez de introduzir Rx sem necessidade legada.
+
+## SOLID pragmático
+- **SRP:** dividir god-services com razões ortogonais de mudança (**alinhado** a [architecture](mdc:../architecture/rule.mdc) e [cognitive-complexity](mdc:../cognitive-complexity/rule.mdc)).
+- **OCP / variantes:** preferir estratégia bem limitada onde já há **várias ramificações estáveis**, evitar só `if (tipo ==)` aberto sem fim (**YAGNI** numa primeira versão).

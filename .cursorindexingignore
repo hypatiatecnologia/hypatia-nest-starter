@@ -1,0 +1,121 @@
+# =============================================================================
+# .cursorindexingignore
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# BUILD ARTIFACTS
+# -----------------------------------------------------------------------------
+# Node / TS / front
+node_modules/
+.next/
+.nuxt/
+.svelte-kit/
+.turbo/
+.cache/
+dist/
+build/
+out/
+coverage/
+.parcel-cache/
+.expo/
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.tox/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+
+# Java / JVM
+target/
+.gradle/
+*.jar
+*.war
+*.ear
+*.class
+.mvn/
+
+# Go
+bin/
+*.exe
+
+# PHP
+vendor/
+.php-cs-fixer.cache
+.phpunit.cache/
+.phpunit.result.cache
+.psalm/
+storage/logs/
+storage/framework/cache/
+storage/framework/sessions/
+storage/framework/views/
+bootstrap/cache/
+*.phar
+
+# .NET
+obj/
+*.dll
+*.pdb
+
+# Mobile
+ios/Pods/
+android/.gradle/
+android/app/build/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# -----------------------------------------------------------------------------
+# DADOS GRANDES — fixtures, snapshots, datasets
+# -----------------------------------------------------------------------------
+**/fixtures/large/
+**/seed-data/
+**/test-data/large/
+**/snapshots/
+*.csv
+*.parquet
+*.arrow
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+
+# -----------------------------------------------------------------------------
+# MÍDIA E BINÁRIOS
+# -----------------------------------------------------------------------------
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.psd
+*.ai
+*.sketch
+*.fig
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.woff
+*.woff2
+*.ttf
+*.eot
+
+# -----------------------------------------------------------------------------
+# MONOREPO
+# -----------------------------------------------------------------------------
+# Descomente conforme o projeto:
+# apps/legacy-*/
+# apps/mobile/      # se você é backend
+# apps/admin/       # se você é cliente
+# packages/deprecated-*/

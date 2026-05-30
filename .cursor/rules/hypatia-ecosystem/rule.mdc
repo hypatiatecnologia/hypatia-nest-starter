@@ -1,0 +1,45 @@
+---
+description: Contexto Pantheon Hypatia — microserviços, mensageria, PII só no Hades.
+alwaysApply: true
+---
+
+# Hypatia Ecosystem — Pantheon
+
+> IDE padrão: **Cursor** (config em `.cursor/`). Starter canônico: `hypatia-nest-starter`.
+> Prosa ao usuário: [linguagem-pt-br](../linguagem-pt-br/rule.mdc). Código e repos: **100% English**.
+
+## Topologia backend
+
+| Service | Repo típico | Starter archetype |
+| --- | --- | --- |
+| Cerberus | `cerberus-gateway` | Gateway (fora deste starter Nest) |
+| Argus | `argus-auth` | `api` |
+| Hades | `hades-vault` / `data-vault` | Produto LGPD — **não** fork do starter |
+| Athena | `athena-core` | `api` + Redis locks |
+| Midas | `midas-payment` | `api` + idempotency keys |
+| Hermes | `hermes-worker` | `worker` |
+| Nemesis | `nemesis-antifraud` | `api` |
+
+Comunicação: **REST** (síncrono) + **RabbitMQ** (assíncrono, exchange `hypatia.events`).
+
+## Regras transversais
+
+- **PII:** só Hades armazena CPF/nome em claro; demais serviços usam referência ou hash.
+- **Logs:** sem PII; respeitar `redact` do Pino em `AppModule`.
+- **Correlation ID:** header `x-correlation-id` — gerado quando ausente, ecoado na resposta; presente em logs Pino, erros HTTP e eventos RabbitMQ.
+- **Eventos:** envelope `HypatiaEvent` (`eventId`, `type`, `occurredAt`, `correlationId`, `payload`).
+- **Consumers:** idempotentes — dedupe por `eventId` (Redis); falhas vão para DLQ.
+- **Pagamentos (Midas):** idempotency keys em todas as requisições ao gateway.
+
+## Onde implementar o quê
+
+| Camada | Path |
+| --- | --- |
+| Infra compartilhada | `src/prisma/`, `src/redis/`, `src/rabbitmq/`, `src/common/correlation/` |
+| Features | `src/modules/<feature>/` |
+| Config tipada | `src/config/configuration.ts` |
+| Env por archetype | `archetypes/api.env.example`, `archetypes/worker.env.example` |
+
+Scaffold de novo serviço: `npm run create-service -- <name> [api|worker]` (copia código + `.cursor/`).
+
+Sincronização: melhorias genéricas em `.cursor/` propagam **hypatia-nest-starter → data-vault**; rules LGPD (`nestjs-patterns` Hades) ficam só em `data-vault`.

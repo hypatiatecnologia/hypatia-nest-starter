@@ -1,0 +1,44 @@
+---
+description: Padrões obrigatórios de segurança para Go
+globs: ["**/*.go"]
+alwaysApply: false
+---
+
+# Segurança — Go
+
+Aplicável a `*.go`. **Precedência:** segurança acima de convenções gerais em conflito ([principles/rule.mdc](mdc:../principles/rule.mdc)).
+
+## Segredos
+- **Proibido** hardcoder segredos; **obrigatório** env + gestor de segredos aprovado.
+- **Proibido** logar tokens ou credenciais.
+
+## Injeção
+- **Obrigatório** queries parametrizadas — ex.: `db.QueryContext(ctx, "SELECT ... WHERE id = $1", id)`; **proibido** `fmt.Sprintf` com input externo em SQL.
+- **Proibido** `exec.Command` com argumentos derivados do usuário sem allowlist rigorosa.
+- **Proibido** `text/template` para HTML de usuário; usar `html/template` com escape automático.
+
+## Validação
+- **Obrigatório** validar entrada na fronteira (handler/middleware); fail fast.
+- **Proibido** confiar em JSON deserializado sem validar campos obrigatórios, tipos e limites.
+
+## HTTP externo / SSRF
+- **Proibido** construir pedidos com URL não validada vinda do usuário.
+- **Obrigatório** `Timeout` em `http.Client`; **proibido** `http.DefaultClient` em produção para chamadas com tempo crítico.
+- **Obrigatório** allowlist de hosts para integrações externas sensíveis.
+
+## Autenticação e autorização
+- **Obrigatório** validar token no servidor; identidade do contexto autenticado, **proibido** confiar só no body.
+- **Obrigatório** verificar ownership do recurso antes de devolver ou alterar (IDOR).
+
+## Criptografia e identificadores
+- **Proibido** `math/rand` para valores sensíveis em segurança; usar `crypto/rand`.
+- **Proibido** primitivas obsoletas para senhas (MD5/SHA1).
+- **Evitar** IDs sequenciais expostos; preferir UUID/ULID.
+
+## Concorrência segura
+- **Proibido** partilhar estado mutável entre goroutines sem sincronização (mutex, channels, ou desenho imutável).
+- **Obrigatório** `context.Context` com cancelamento em operações longas ou I/O.
+
+## TLS e erros HTTP
+- **Proibido** `InsecureSkipVerify: true` em produção.
+- **Proibido** devolver erro interno detalhado ao cliente; logar server-side, resposta genérica.

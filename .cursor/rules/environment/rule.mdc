@@ -1,0 +1,145 @@
+---
+description: CI/CD, Docker, mise/nvm. Não usar para regra de negócio em src/ da aplicação.
+globs:
+  - Dockerfile
+  - Dockerfile.*
+  - docker-compose.yml
+  - docker-compose.yaml
+  - compose.yml
+  - compose.yaml
+  - ".github/workflows/**"
+  - ".gitlab-ci.yml"
+  - ".tool-versions"
+  - mise.toml
+  - ".nvmrc"
+  - ".sdkmanrc"
+  - Makefile
+alwaysApply: false
+---
+
+# Ambiente, CI/CD e Containerização
+
+Ativar quando o contexto envolver: Dockerfiles, docker-compose, arquivos de CI (`.github/workflows/`, `.gitlab-ci.yml`), scripts de setup de ambiente ou gerenciamento de SDKs.
+
+> Segurança: [typescript-security.mdc](mdc:../security/typescript-security.mdc) / [python-security.mdc](mdc:../security/python-security.mdc) aplicáveis nos scripts.
+> Princípios gerais: [principles/rule.mdc](mdc:../principles/rule.mdc).
+
+## Gerenciamento de SDKs e versões
+
+### mise (preferido — multi-linguagem)
+- Versões declaradas em `.tool-versions` (compatível com asdf) ou `mise.toml`.
+- **Obrigatório** commitar o arquivo de versões no repo; nunca assumir versão global da máquina.
+- Comando de setup: `mise install` (instala todas as ferramentas declaradas).
+- Exemplo `.tool-versions`:
+  ```
+  nodejs 22.4.0
+  python 3.12.3
+  java temurin-21.0.3+9
+  golang 1.22.4
+  ```
+
+### Alternativas por ecossistema
+- Node.js: `.nvmrc` com versão LTS exata (`nvm use`); ou `engines.node` em `package.json`.
+- Java/Kotlin: `.sdkmanrc` (`sdk env install`) ou `mise.toml`.
+- Python: `.python-version` (pyenv/mise).
+- Go: `go.mod` (campo `go X.Y`) é a fonte de verdade.
+- PHP: `.php-version` (mise/phpenv); versão declarada em `composer.json` (`"require": {"php": "^8.3"}` ou `"^7.x"` para legado).
+
+## Docker
+
+### Dockerfile — boas práticas obrigatórias
+- Imagem base **slim/alpine** ou **distroless**; nunca `:latest` em produção — usar digest ou tag imutável.
+- **Multi-stage build**: estágio de build separado do estágio de runtime; artefato copiado entre estágios.
+- `RUN` combinados com `&&` para minimizar layers; limpeza de cache na mesma instrução (`apt-get clean`, `pip cache purge`).
+- **Obrigatório** `USER` não-root no estágio final.
+- `HEALTHCHECK` declarado para serviços de longa duração.
+- Proibido credenciais, tokens ou secrets em `ENV`, `ARG` ou `COPY` no Dockerfile — injetar em runtime via secrets do orquestrador.
+
+```dockerfile
+# Exemplo Node — multi-stage
+FROM node:22-slim AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --ignore-scripts
+COPY . .
+RUN npm run build
+
+FROM node:22-slim AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+USER node
+EXPOSE 3000
+HEALTHCHECK --interval=30s CMD wget -qO- http://localhost:3000/healthz || exit 1
+CMD ["node", "dist/main.js"]
+```
+
+### docker-compose (desenvolvimento local)
+- `docker-compose.yml` para dependências locais (DB, cache, filas) — nunca para build de produção.
+- Volumes nomeados para dados persistentes; `.env` ou `env_file` para configuração local.
+- `depends_on` com `condition: service_healthy` para dependências com healthcheck.
+- Proibido commitar `.env` com secrets reais — usar `.env.example` com valores fictícios.
+
+## CI/CD
+
+### Estrutura geral de pipeline (GitHub Actions / GitLab CI)
+Todo pipeline deve ter as etapas nesta ordem:
+1. **lint** — linter da linguagem (ruff, eslint, golangci-lint, ktlint).
+2. **type-check** — mypy/pyright, tsc --noEmit, etc.
+3. **test** — unit + integration; cobertura reportada como artefato.
+4. **security-scan** — gitleaks (secrets), Semgrep (SAST), Trivy (container/deps).
+5. **build** — artefato ou imagem Docker.
+6. **deploy** — apenas em branches protegidas (main/production).
+
+### Regras de pipeline
+- **Obrigatório** cache de dependências (actions/cache, `cache:` no GitLab) para reduzir tempo.
+- **Obrigatório** variáveis sensíveis via secrets do CI — nunca em código ou variáveis de ambiente do repositório público.
+- **Proibido** `continue-on-error: true` em etapas de segurança ou testes.
+- Timeouts explícitos por job (ex: `timeout-minutes: 15`).
+- Matrix de versões quando o repo suporta múltiplas versões de runtime.
+
+### Supply chain — varredura de dependências (obrigatório em todo pipeline)
+Adicionar após o step de `test`, antes de `build`:
+
+| Stack | Comando |
+|-------|---------|
+| Node/TS | `npm audit --audit-level=high` ou `trivy fs --exit-code 1 --severity HIGH,CRITICAL .` |
+| Python | `pip-audit` ou `trivy fs --exit-code 1 --severity HIGH,CRITICAL .` |
+| Go | `govulncheck ./...` |
+| Java/Kotlin | `./mvnw dependency-check:check` (OWASP) ou `trivy fs` |
+| Todos (imagem Docker) | `trivy image --exit-code 1 --severity HIGH,CRITICAL <imagem>` |
+
+- **Proibido** ignorar CVEs críticos sem issue documentada com prazo e justificativa.
+- **Obrigatório** commitar lockfile (`package-lock.json`, `pnpm-lock.yaml`, `poetry.lock`, `go.sum`) — nunca em `.gitignore`.
+- Configurar Dependabot ou Renovate para PRs automáticos de atualização de dependências.
+
+### Exemplo GitHub Actions (Node/TS):
+```yaml
+name: CI
+on: [push, pull_request]
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run type-check
+      - run: npm test -- --coverage
+      - uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          severity: HIGH,CRITICAL
+```
+
+## Scripts de setup e automação
+- Scripts de setup em `scripts/` ou `Makefile`; documentar targets no `README.md`.
+- `Makefile` com targets padrão: `setup`, `dev`, `test`, `lint`, `build`, `clean`.
+- Scripts shell: `set -euo pipefail` na primeira linha; sem lógica de negócio — apenas orquestração.
+- Proibido scripts que modifiquem config global da máquina sem confirmação explícita do usuário.

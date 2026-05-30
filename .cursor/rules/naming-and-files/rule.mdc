@@ -1,0 +1,27 @@
+---
+description: Naming em código — camelCase, PascalCase; arquivos e rotas — kebab-case onde aplicável
+alwaysApply: true
+---
+
+# Nomenclatura e arquivos
+
+**Fonte de verdade para casing**, nomes de arquivos/pastas e rotas públicas REST **neste documento**. Regras de tipos sintáticos: [typescript/rule.mdc](mdc:../typescript/rule.mdc), [go/rule.mdc](mdc:../go/rule.mdc). Princípios gerais (KISS, fail fast): [principles/rule.mdc](mdc:../principles/rule.mdc).
+
+## Escolha de casing (prioridade para LLMs)
+| Contexto | Convenção típica | Exemplo |
+|----------|-------------------|---------|
+| Variáveis, funções, métodos (TS/JS) | camelCase | `loadInvoice`, `userId` |
+| Tipos, classes, componentes React, enums TS | PascalCase | `InvoiceService`, `UserCard` |
+| Constantes verdadeiras (imutável global/app) | UPPER_SNAKE onde o projeto assim definir | `MAX_RETRIES`, `API_VERSION` |
+| Arquivos e pastas TS/JS/React (componentes PascalCase só se projeto já assim o exige) | kebab-case **ou** PascalCase só para Componentes `.tsx`; **consistente dentro do repo** | `invoice-service.ts`, `UserAvatar.tsx` |
+| Rotas HTTP públicas REST e URLs de API quando controladas por ti | preferir **kebab-case**: `/billing/invoices`; versionamento tipo `/v1/...` se existir padrão | `/user-profiles` |
+| Pacotes Go | uma palavra, minúsculas | `invoice` |
+| Módulos Python | snake_case | `invoice_service.py` |
+
+## Regras imperativas
+- **Obrigatório** seguir o padrão **já dominante** no repositório ao editar arquivos existentes; não introduzir casing misto na mesma árvore sem motivo.
+- **Proibido** nomes genéricos `data`, `info`, `manager`, `handler` sem domínio — preferir `loadTaxSummary`, `validateIban`.
+- Rotas e nomes de recursos em URL: **evitar** camelCase em paths públicos; **preferir** kebab-case salvo convenção legada documentada.
+
+## Microserviços / camadas
+- **Obrigatório** regra de negócio em **domínio / serviço de aplicação** — nomes de arquivos devem refletir feature ou caso de uso, não só tipo técnico (`controllers/lote` com lógica pesada é cheiro de violação de [architecture/rule.mdc](mdc:../architecture/rule.mdc)).

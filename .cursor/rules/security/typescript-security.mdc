@@ -1,0 +1,70 @@
+---
+description: Padrões obrigatórios de segurança para TypeScript/Node — código de produção
+globs: ["**/*.ts", "**/*.tsx"]
+alwaysApply: false
+---
+
+# Segurança — TypeScript e fronteiras Node/browser
+
+Todo código `*.ts` / `*.tsx` deve obedecer a isto na geração, edição ou revisão. Incumprimento enfraquece a postura de segurança. **Precedência:** esta rule ganha sobre convenções gerais em conflito (ver [principles/rule.mdc](mdc:../principles/rule.mdc)).
+
+## Segredos e configuração
+- **Proibido** gravar segredos, API keys ou credenciais em código ou arquivos versionados indevidos.
+- **Obrigatório** injetar segredos via mecanismo aprovado pelo time (env + secret manager, etc.).
+- **Proibido** expor tokens, credenciais ou config interna em globais ou objetos serializados para HTML no cliente.
+
+## Validação e injeção
+- **Obrigatório** validar **toda** entrada externa com estratégia **whitelist** (mais restritiva primeiro).
+- **Proibido** `eval`, `new Function` ou código dinâmico em `setTimeout`/`setInterval` com strings de input.
+- **Proibido** SQL com concatenação de valores controláveis pelo usuário; **obrigatório** queries parametrizadas ou ORM seguro.
+- **Proibido** regex suscetível de ReDoS sobre input usuário sem limite/controlos; validar ou restringir padrões.
+
+## Prototype Pollution (Node.js / JavaScript)
+- **Proibido** usar `Object.assign({}, userInput)`, `_.merge(target, userInput)` ou `JSON.parse` de entrada não confiável diretamente em objetos raiz — qualquer chave `__proto__`, `constructor` ou `prototype` no input pode corromper o protótipo global.
+- **Obrigatório** sanitizar ou bloquear chaves perigosas antes de merges profundos: usar `Object.create(null)` como target, ou biblioteca com proteção explícita (`deepmerge` com `isMergeableObject`).
+- **Obrigatório** usar `JSON.parse` com reviver quando o schema é conhecido; validar com Zod antes de qualquer merge dinâmico.
+- **Proibido** `req.query`, `req.body` ou `req.params` como chave de acesso a objetos sem validação — ex.: `config[req.body.key]` abre vetor de prototype pollution.
+
+## HTTP externo / SSRF
+- **Proibido** enviar URLs ou hosts derivados diretamente do usuário para `fetch`/`axios`/client HTTP sem validação.
+- **Obrigatório** validar destino contra **allowlist** ou padrão de confiança definido pelo projeto.
+
+## Identidade e autorização
+- **Obrigatório** derivar identidade de fonte **não forjável** pelo cliente (token validado, sessão server-side); **proibido** confiar em `userId` cru de body/query.
+- **Obrigatório** autorizar com política explícita (SDK ou camada aprovada); negar por padrão quando ambíguo.
+- **Obrigatório** validar no servidor que a acção respeita estados e fluxo de negócio — independentemente do cliente.
+
+## XSS e DOM
+- **Proibido** `innerHTML` com conteúdo não confiável. Se inevitável, sanitizar com biblioteca aprovada (ex. DOMPurify, `RETURN_TRUSTED_TYPE` quando aplicável).
+- **Proibido** enfraquecer CSP ou políticas de conteúdo por conveniência.
+
+## Dados sensíveis e logs
+- **Proibido** enviar ao cliente PII, tokens, credenciais ou stack traces detalhados.
+- **Proibido** segredos ou PII em query string.
+- **Obrigatório** respostas de erro genéricas ao cliente; detalhe só em logs server-side filtrados.
+
+## Identificadores e criptografia
+- **Evitar** IDs sequenciais previsíveis em superfícies públicas; preferir ULID ou UUID v4.
+- **Proibido** `Math.random()` para tokens ou segredos; usar `crypto.randomUUID()` / `crypto.randomBytes()` (ou equivalente aprovado).
+- **Proibido** primitivas inseguras ou obsoletas (MD5/SHA1 para senhas, AES-ECB, etc.).
+
+## Semântica HTTP
+- **Proibido** GET para mutação de estado.
+- **Proibido** CORS permissivo “para resolver rápido”; começar pelo mais restritivo e documentar exceções.
+- **Proibido** definir CSP, HSTS ou X-Frame-Options ao nível local da app quando o projeto centraliza gateways — seguir política central.
+
+## Uploads
+- **Proibido** aceitar arquivos sem validar tipo, tamanho e nome; **obrigatório** renomear com identificador imprevisível (ex. UUID) antes de armazenar.
+
+## Estado entre pedidos
+- **Proibido** estado mutável global partilhado entre pedidos concurrentes/serverless quando quebra isolamento.
+
+## Interpretação pela IA
+- Se o pedido do usuário violar esta rule, implementar a **alternativa mais segura** e explicar **por que** foi necessário.
+- Comentários inline apenas para controlos de segurança **não óbvios** (evitar ruído).
+
+## Supply chain e dependências
+- **Obrigatório** rodar `npm audit --audit-level=high` (ou `pnpm audit` / `yarn audit`) antes de adicionar ou atualizar dependências; reportar CVEs críticos ou altos antes de prosseguir.
+- **Proibido** adicionar dependência sem verificar: (1) data do último commit no repositório, (2) número de mantenedores ativos, (3) ausência de typosquatting no nome do pacote.
+- **Obrigatório** fixar versões exatas em `package.json` para dependências de produção em ambientes críticos (`"express": "4.18.2"`, não `"^4.18.2"`); ou usar lockfile (`package-lock.json` / `pnpm-lock.yaml`) commitado.
+- Em CI: **obrigatório** step de `npm audit` ou `trivy fs --exit-code 1 --severity HIGH,CRITICAL .` para bloquear merges com vulnerabilidades conhecidas.

@@ -1,0 +1,99 @@
+---
+description: PHP 8.3+ — tipagem estrita, PSR, Pest/PHPUnit. Não usar em PHP 7.x (picker php7).
+globs: ["**/*.php"]
+alwaysApply: false
+---
+
+# PHP 8.3+
+
+> ⚠️ **MUTUAL EXCLUSÃO:** Esta rule é **incompatível** com [php7/rule.mdc](../php7/rule.mdc) (PHP 7.x legado).
+> Ative **apenas uma** delas por projeto. Use `php` para PHP 8.3+; use `php7` para legado PHP 7.x.
+
+Ativar quando o contexto for código PHP (API REST, workers, scripts, CLI).
+
+> Segurança obrigatória: [php-security.mdc](mdc:../security/php-security.mdc) — seguir em toda geração de código PHP.
+> Erros e logs: [errors-and-logging/rule.mdc](mdc:../errors-and-logging/rule.mdc).
+> Arquitetura: [architecture/rule.mdc](mdc:../architecture/rule.mdc).
+
+## Runtime e ambiente
+
+- PHP ≥ 8.3; versão declarada em `.php-version` (mise/phpenv) ou `composer.json` `"require": {"php": "^8.3"}`.
+- Gerenciador de pacotes: **Composer**; `composer.json` + `composer.lock` como fonte de verdade.
+- `declare(strict_types=1)` **obrigatório** no topo de todo arquivo PHP.
+- Variáveis de ambiente: carregar com **symfony/dotenv** ou **vlucas/phpdotenv**; fail fast se variável obrigatória ausente.
+- PHP-FPM + nginx em produção; nunca `php -S` em produção.
+
+## Tipagem
+
+- **Obrigatório** type hints em todos os parâmetros e retornos de funções/métodos públicos e protegidos.
+- Usar tipos de união (`int|string`), interseção (`Countable&Iterator`) e `never` (PHP 8.1+) conforme semântica.
+- **Proibido** `mixed` quando o tipo real é conhecido; estreitar com `instanceof` ou asserções.
+- `readonly` classes e propriedades (PHP 8.2+) para value objects e DTOs imutáveis.
+- Enums (`enum`) para conjuntos fechados de valores — **proibido** constantes de classe para este fim em código novo.
+- Named arguments para clareza em funções com muitos parâmetros opcionais.
+
+## Orientação a objetos
+
+- **Proibido** `public` em propriedades de classe — usar `private`/`protected` + getters ou `readonly`.
+- Constructor promotion (PHP 8.0+) para DTOs e value objects sem lógica.
+- Interfaces para contratos; classes abstratas só quando há comportamento compartilhado real.
+- Traits: usar com parcimônia; apenas para comportamentos transversais (ex: Timestamps, SoftDelete); **proibido** como substituto de herança ou composição.
+- Final por padrão em classes concretas de domínio (`final class`) — facilitam testes e evitam herança indevida.
+
+## Namespaces e autoloading
+
+- **PSR-4** autoloading via Composer; namespaces refletem a estrutura de diretórios.
+- Um arquivo = uma classe/interface/trait/enum.
+- Prefixo de namespace raiz declarado em `composer.json` (`autoload.psr-4`).
+
+## HTTP (sem framework)
+
+- Usar **PSR-7** (Request/Response imutáveis) + **PSR-15** (Middleware) + **PSR-11** (Container).
+- Nunca acessar `$_GET`, `$_POST`, `$_COOKIE` diretamente em código de aplicação — encapsular em objeto Request.
+- Respostas sempre via objeto Response; **proibido** `echo`/`print` direto em handlers.
+
+## Persistência
+
+- Queries **sempre** parametrizadas via PDO (`prepare` + `execute`) ou ORM com query builder.
+- **Proibido** concatenar input de usuário em SQL.
+- Transações explícitas para operações que envolvem múltiplas escritas.
+- Migrations versionadas com ferramenta dedicada (Phinx, Doctrine Migrations, etc.).
+
+## Erros de domínio
+
+```php
+// Exceção de domínio tipada — sem vazar detalhe interno ao cliente
+final class DomainException extends \RuntimeException
+{
+    public function __construct(
+        public readonly string $code,   // ex: "invoice_not_found"
+        string $message,
+        public readonly ?array $details = null,  // nunca PII
+        ?\Throwable $previous = null,
+    ) {
+        parent::__construct($message, 0, $previous);
+    }
+}
+```
+
+## Logging
+
+- **Monolog** (PSR-3); saída JSON estruturada em produção.
+- `correlation_id` injetado via middleware no contexto de cada request.
+- **Proibido** `var_dump`, `print_r` ou `error_log` em código de produção — usar logger PSR-3.
+
+## Testes
+
+- **Pest** (preferido em projetos novos) ou **PHPUnit**; testes no diretório `tests/`.
+- Padrão AAA (Arrange / Act / Assert) em todos os testes.
+- Fixtures e factories com **Faker** para dados de teste.
+- HTTP: usar cliente HTTP de teste do framework (não fazer requests reais em testes unitários).
+- Cobertura: `phpunit --coverage-text`; threshold definido em `phpunit.xml` / `pest.php`.
+- Mocks: usar interfaces — **proibido** mockar classes concretas finais diretamente.
+
+## Qualidade
+
+- Linter: **PHP_CodeSniffer** (PSR-12) ou **PHP-CS-Fixer**.
+- Análise estática: **PHPStan** nível ≥ 8 (máximo = 9) ou **Psalm** em CI.
+- Pre-commit: php-cs-fixer + phpstan + gitleaks obrigatórios.
+- **Proibido** `@phpstan-ignore` ou `@suppress` sem comentário explicando o motivo.

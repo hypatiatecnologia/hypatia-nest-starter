@@ -1,0 +1,85 @@
+---
+description: Padrões obrigatórios de segurança para PHP (Laravel/Symfony/Zend Framework/PHP puro)
+globs: ["**/*.php"]
+alwaysApply: false
+---
+
+# Segurança — PHP
+
+Aplicável a código `*.php`. **Precedência:** segurança acima de convenções gerais em conflito ([principles/rule.mdc](mdc:../principles/rule.mdc)).
+
+## Segredos e configuração
+- **Proibido** hardcodar segredos, credenciais ou tokens em código-fonte.
+- **Obrigatório** variáveis de ambiente + gestor de segredos aprovado (Vault, AWS Secrets Manager, Symfony Secrets Vault).
+- **Proibido** commitar `.env`, `.env.local`, `.env.prod` com valores reais.
+- **Proibido** devolver ao cliente stack traces, caminhos de arquivo do servidor ou credenciais em respostas de erro.
+- `APP_DEBUG=false` / `display_errors=Off` obrigatórios em produção.
+
+## Injeção de SQL
+- **Obrigatório** queries parametrizadas — PDO `prepare()` + `execute([':param' => $value])`.
+- **Proibido** concatenar ou interpolar variáveis em strings SQL: `"SELECT * WHERE id = $id"` — nunca.
+- ORM (Eloquent, Doctrine): **proibido** `DB::statement()` / `$conn->executeStatement()` com input sem binding seguro.
+- **Proibido** `whereRaw()` / `andWhere('x = ' . $input)` com variáveis não vinculadas.
+
+## Injeção de código e comandos
+- **Proibido** `eval()` sobre qualquer input externo.
+- **Proibido** `exec()`, `shell_exec()`, `system()`, `passthru()`, `proc_open()` com input de usuário sem escapamento explícito e allowlist de comandos.
+- **Proibido** `include`/`require` com caminho derivado de input externo (LFI/RFI).
+- **Proibido** `unserialize()` sobre dados de origem externa sem assinatura verificada — usar JSON.
+
+## XSS e output
+- **Obrigatório** escapar todo output HTML com `htmlspecialchars($val, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')` ou equivalente do template engine (Blade `{{ }}`, Twig `{{ }}`).
+- **Proibido** `{!! !!}` (Blade raw) / `{{ raw }}` (Twig) com input não sanitizado.
+- Headers `Content-Type` corretos em todas as respostas; `X-Content-Type-Options: nosniff`.
+
+## CSRF
+- **Obrigatório** proteção CSRF em todos os formulários e endpoints que mutam estado (POST/PUT/PATCH/DELETE) em apps com sessão browser.
+- Laravel: `@csrf` / `VerifyCsrfToken` middleware habilitado; **proibido** adicionar rota em `$except` sem justificativa.
+- Symfony: `csrf_token()` em formulários; `CsrfTokenManager` para endpoints AJAX.
+- Zend Framework: `Zend\Form` gera token CSRF automaticamente via `Zend\Validator\Csrf`; **proibido** desabilitar sem justificativa documentada.
+- APIs stateless (token Bearer): CSRF não se aplica, mas **proibido** aceitar cookie de sessão nesse contexto.
+
+## Validação de entrada
+- **Obrigatório** validar tipo, intervalo, comprimento e formato de cada campo externo antes de usar.
+- Laravel: `FormRequest` com `rules()` explícito; **proibido** `$request->all()` sem whitelist de campos.
+- Symfony: `#[Assert\*]` attributes + `$validator->validate()`; **proibido** usar entidade sem validação prévia.
+- Zend Framework: `InputFilter` obrigatório para todo dado de formulário ou request; **proibido** acessar `$_POST`/`$_GET` diretamente — usar `$this->params()` no controller.
+- **Proibido** confiar em `Content-Type` ou extensão de arquivo enviada pelo cliente — validar MIME real (Fileinfo).
+
+## Upload de arquivos
+- **Proibido** salvar arquivo com nome fornecido pelo cliente — gerar nome aleatório (`bin2hex(random_bytes(16))`).
+- **Proibido** salvar uploads em diretório acessível publicamente com extensão executável (`.php`, `.phar`, `.phtml`).
+- Validar MIME real via `finfo_file()` — nunca confiar em `$_FILES['type']`.
+- Tamanho máximo configurado no nível da aplicação e do servidor (`upload_max_filesize`, `post_max_size`).
+
+## Autenticação e autorização
+- **Obrigatório** identidade a partir de sessão/token validado pelo servidor — **proibido** confiar em `user_id` cru do body ou query string.
+- **Obrigatório** verificar propriedade do recurso antes de retornar ou mutar (IDOR).
+- **Obrigatório** rate limiting em endpoints de login, registro e reset de senha.
+- Sessões: `session_regenerate_id(true)` após login; `session_destroy()` no logout.
+- **Proibido** armazenar senha em texto plano — **obrigatório** `password_hash($password, PASSWORD_BCRYPT)` / `PASSWORD_ARGON2ID`.
+- **Proibido** comparação direta de tokens com `===` — usar `hash_equals()` para evitar timing attack.
+
+## Criptografia e identificadores
+- **Proibido** `rand()`, `mt_rand()`, `array_rand()` para gerar tokens, IDs secretos ou nonces — usar `random_bytes()` / `random_int()`.
+- **Proibido** MD5/SHA1 para hashing de senhas — usar `password_hash()` com algoritmo moderno.
+- **Evitar** IDs sequenciais expostos publicamente — preferir UUID (`ramsey/uuid`) ou ULID.
+- Dados sensíveis em repouso: criptografia com `openssl_encrypt` (AES-256-GCM) ou biblioteca aprovada (libsodium via `sodium_crypto_*`).
+
+## HTTP externo / SSRF
+- **Proibido** passar URL fornecida por usuário diretamente a `file_get_contents()`, `curl_exec()`, `Http::get()` — obrigatório allowlist de host/esquema.
+- **Obrigatório** timeout em todas as chamadas HTTP de saída (cURL `CURLOPT_TIMEOUT`, Guzzle `timeout`).
+- **Proibido** seguir redirecionamentos sem validar destino (`CURLOPT_FOLLOWLOCATION` sem restrição de host).
+
+## Headers de segurança
+- **Obrigatório** nos responses HTTP de produção:
+  - `Content-Security-Policy` (mínimo: `default-src 'self'`)
+  - `X-Frame-Options: DENY` ou `SAMEORIGIN`
+  - `Strict-Transport-Security: max-age=31536000; includeSubDomains`
+  - `Referrer-Policy: strict-origin-when-cross-origin`
+
+## Erros e logs
+- **Obrigatório** mensagens genéricas ao cliente; detalhe completo apenas em log server-side.
+- **Proibido** stack trace na resposta em produção.
+- **Proibido** logar senhas, tokens, CPF, cartão de crédito ou qualquer PII identificável em claro.
+- **Obrigatório** logging estruturado (Monolog + formato JSON); `correlation_id` por request.

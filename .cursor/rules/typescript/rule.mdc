@@ -1,0 +1,43 @@
+---
+description: TypeScript core (strict, naming). Não substitui typescript-node/react nem company-patterns.
+globs: ["**/*.ts", "**/*.tsx", "**/*.d.ts"]
+alwaysApply: false
+---
+
+# TypeScript — core
+
+> Segurança TS/Node/UI: [typescript-security.mdc](mdc:../security/typescript-security.mdc).  
+> Erros/logging e JSDoc alvo: [errors-and-logging/rule.mdc](mdc:../errors-and-logging/rule.mdc); naming/arquivos/rotas: [naming-and-files/rule.mdc](mdc:../naming-and-files/rule.mdc).  
+> Arquitetura: [architecture/rule.mdc](mdc:../architecture/rule.mdc).  
+> Overlays manuais: Node [typescript-node/rule.mdc](mdc:../typescript-node/rule.mdc), React web [typescript-react/rule.mdc](mdc:../typescript-react/rule.mdc), RN [typescript-react-native/rule.mdc](mdc:../typescript-react-native/rule.mdc); testes [tester/rule.mdc](mdc:../tester/rule.mdc); APIs públicas contratadas [openapi-contracts/rule.mdc](mdc:../openapi-contracts/rule.mdc).
+
+## I. Sistema de tipos
+- **Sempre** `strict: true` no tsconfig (inclui `strictNullChecks`, `noImplicitAny`, `useUnknownInCatchVariables`).
+- Considere `noUncheckedIndexedAccess` e `exactOptionalPropertyTypes` quando o projeto aceitar o custo.
+- **Prefira** `unknown` a `any`; estreite com type guards.
+- `interface` para formas de objeto extensíveis (APIs públicas, props de componentes); `type` para uniões, interseções, mapped types e helpers.
+- Use `readonly` onde o valor não deve mudar após construção.
+- Unions discriminadas com `switch` / exhaustividade para estados.
+- `satisfies` para validar literais sem alargar o tipo; evite `as` salvo quando a inferência falha de facto.
+- Tipos **marcados** (“branded”) para IDs de domínio quando elimina confusão entre strings (`type UserId = string & { readonly __brand: 'UserId' }`).
+- Tipos utilitários (`Partial`, `Pick`, `Omit`, `ReturnType`, etc.) e genéricos `<T>` quando reduzem duplicação sem obscurecer leitura.
+
+## II. Naming
+- Tipos (interfaces, classes, enums): `PascalCase`.
+- Variáveis e funções: `camelCase`.
+- Constantes e enum members: `UPPER_CASE`.
+- Booleans: prefixo `is`/`has`/`should`/`can`.
+
+## III. Funções
+- Return type explícito em funções **públicas**.
+- Prefira `async`/`await` a `.then()`/`.catch()`.
+- Funções pequenas, foco único.
+
+## IV. Erros
+- Classes de erro de domínio estendendo `Error`.
+- Em `catch (error: unknown)`, type guards (`instanceof`, etc.) antes de usar.
+- Trate rejections de Promise — não deixe fugir.
+
+## V. Build
+- ESLint + Prettier do projeto; não inventar config local solta.
+- `forceConsistentCasingInFileNames: true`.

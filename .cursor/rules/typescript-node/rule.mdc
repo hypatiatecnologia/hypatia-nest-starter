@@ -1,0 +1,66 @@
+---
+description: Node backend novo (Fastify/Nest, Zod). Não usar em Express+Yup legado — preferir company-patterns + node-express.
+alwaysApply: false
+---
+
+# TypeScript / Node backend
+
+Ativar quando o contexto for serviços Node **novos** (API REST, consumers, workers, CLI) com Fastify, Nest ou stack greenfield.
+
+> Core TS: [typescript/rule.mdc](mdc:../typescript/rule.mdc).  
+> Segurança: [typescript-security.mdc](mdc:../security/typescript-security.mdc).  
+> Erros e logs: [errors-and-logging/rule.mdc](mdc:../errors-and-logging/rule.mdc).
+
+## Express + Yup (legado Idea)
+
+Se o `package.json` tiver **express** e **yup** (sem Fastify como servidor principal):
+
+- Ativar [company-patterns/rule.mdc](mdc:../company-patterns/rule.mdc) + [node-express/rule.mdc](mdc:../node-express/rule.mdc).
+- **Não** prescrever Zod, Fastify, Prisma/Drizzle nesta sessão salvo pedido explícito de migração.
+- Validação e layout de módulo seguem o padrão do repositório (`schemas/`, `IController`, `adaptRoute`).
+
+## Runtime e módulos
+- Node LTS conforme projeto; versions em `.nvmrc` / `.tool-versions` / `engines`.
+- Preferir **ESM** (`"type": "module"`) em projetos novos; CJS só legado.
+
+## HTTP
+- Preferir **Fastify** para serviços novos; **NestJS** para DI e camadas fortes em equipes grandes; **Express** para legado fino.
+- Rotas montadas em routers; arquivo de entrada com bootstrap enxuto.
+- API pública com spec: alinhar implementação a [openapi-contracts/rule.mdc](mdc:../openapi-contracts/rule.mdc) quando o projeto versiona OpenAPI.
+
+## Tipos (overlay sobre o core)
+- `strict: true`; considerar `noUncheckedIndexedAccess` e `exactOptionalPropertyTypes`.
+- Sem `any`; `unknown` + estreitamento.
+
+## Limites de confiança — validação
+- **Zod** em body/query/params, filas e env quando for a stack adotada no repo (tipos via `z.infer`).
+- Se o repo usar **Yup** (legado Express): não substituir por Zod aqui — ver bloco Express + Yup acima.
+- Fastify/Nest: type provider Zod ou pipes conforme o projeto.
+
+## Persistência / dados
+- **Prisma** ou **Drizzle**; migrações versionadas e reversíveis; transações nos limites certos da aplicação.
+
+## Logs e erros
+- **Pino** (ou equivalente aprovado) em JSON estruturado; correlacionação de pedido (`x-request-id` / AsyncLocalStorage); redigir dados sensíveis.
+- Erros com `statusCode` e `code` estáveis; handler central; respostas ao cliente sem stack ou caminhos internos.
+
+## Config e secrets
+- Config carregada uma vez, validada (Zod); **fail fast**; evitar `process.env` espalhado — módulo `config` tipado.
+
+## Async / IO
+- `async`/`await` consistente; **timeouts** em chamadas externas (`AbortSignal` ou equivalente); `Promise.all` / `Promise.allSettled` com critério explícito.
+
+## Cliente HTTP
+- Preferir `fetch` / `undici` em código novo; timeouts, retries e circuit breaker conforme criticidade do dependente.
+
+## Filas / shutdown
+- Consumers idempotentes; retry com backoff; dead-letter após limite; shutdown gracioso (drenar jobs em SIGTERM).
+
+## Testes
+Ver [tester/rule.mdc](mdc:../tester/rule.mdc) para convenções completas. Resumo desta stack:
+- Runner: **Vitest** (ou Jest legado); `fastify.inject` ou `supertest` para HTTP.
+- Integração com DB real via **Testcontainers** quando o teste depende de migrações ou comportamento do ORM.
+- Não usar `any` em código de teste — o mesmo `strict: true` do código de produção.
+
+## Observabilidade
+- Métricas (ex. Prometheus), traces (OpenTelemetry), `/healthz` (liveness) e `/readyz` (readiness com dependências).

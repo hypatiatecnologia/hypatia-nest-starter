@@ -1,0 +1,37 @@
+---
+description: Express legado — routers, handler de erro, validação do package.json. Não usar em Fastify/Nest novos nem para prescrever Zod se o repo usa Yup.
+globs:
+  [
+    "**/express/**/*.ts",
+    "**/routes/**/*.ts",
+    "**/middleware/**/*.ts",
+    "**/app.ts",
+    "**/server.ts",
+  ]
+alwaysApply: false
+---
+
+# Node / Express (legado)
+
+> ⚠️ **OVERLAY:** Ativa em `app.ts`, `routes/`, `middleware/`, `express/`.
+> **Não usar** em serviços novos Fastify/Nest — ative `@typescript-node` no picker.
+
+> **Precedência:** se [company-patterns/rule.mdc](mdc:../company-patterns/rule.mdc) estiver ativa (glob `src/**/*.ts`), **estrutura de módulo e validação Yup** vencem esta rule. Orientação genérica Fastify/Zod fica em [typescript-node/rule.mdc](mdc:../typescript-node/rule.mdc) (ativação manual).
+
+## Obrigatório nesta stack
+
+- **Routers em módulos**: cada domínio expõe seu próprio `Router`; o `app.ts` só monta e inicializa.
+- **Sem lógica de negócio no arquivo de entrada**: `app.listen` e bootstrap apenas.
+- **Handler central de erro**: último middleware; shape em [errors-and-logging/rule.mdc](mdc:../errors-and-logging/rule.mdc).
+- **Validação na borda**: usar a biblioteca já no `package.json` (`yup`, `zod`, `express-validator`, etc.). Em repos Idea com `company-patterns`, preferir **Yup** + `validateRequest` do projeto — **não** migrar para Zod só por esta rule.
+- **Segurança**: [typescript-security.mdc](mdc:../security/typescript-security.mdc).
+
+## Proibido nesta stack
+
+- SQL/ORM direto no router sem camada de serviço.
+- `try/catch` silencioso.
+- Estado global mutável entre requests.
+
+## Migração
+
+Novos módulos: avaliar Fastify em rotas novas; não expandir superfície Express sem necessidade. Não prescrever migração Yup→Zod em refactor pontual.

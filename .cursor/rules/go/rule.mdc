@@ -1,0 +1,30 @@
+---
+description: Go — errors, table tests, fmt. Não usar em TypeScript/PHP do mesmo repo.
+globs: ["**/*.go"]
+alwaysApply: false
+---
+
+# Go Standards
+
+## I. Error handling — idiomático
+- **Sempre** retorne `error` como último valor; **nunca** `panic` em handler de request.
+- Wrap erros com contexto: `fmt.Errorf("failed to fetch user: %w", err)`.
+- **Sempre** use `context.Context` como primeiro parâmetro em funções com I/O.
+- Prefira inline error check: `if err := svc.Get(ctx, id); err != nil { return err }`.
+
+## II. Naming
+- Pacotes: lowercase, palavra única.
+- Exportadas: `PascalCase` (`ValidateUser`); não-exportadas: `camelCase` (`validateUser`).
+- Interfaces de 1 método: sufixo `-er` (`Reader`, `Validator`).
+- Funções booleanas: `is`/`has`/`can` (`isValidDateFormat`).
+
+## III. Idiomas
+- Prefira `any` (Go ≥1.18) em vez de `interface{}` em código novo; use raramente; prefira interfaces específicas e pequenas (1–3 métodos).
+- Composição via embedding; **nunca** simule herança.
+- Goroutines: sempre tenha estratégia de término; cuidado com leaks e races.
+- Channels buffered quando produtor/consumidor têm cadências diferentes.
+
+## IV. Formatação
+- `gofmt` + `goimports` antes de commit; lint com `golangci-lint`.
+- Linha em branco antes de `return` e antes de `if` (exceto quando a linha anterior define a variável usada no `if`).
+- Testes table-driven por padrão.

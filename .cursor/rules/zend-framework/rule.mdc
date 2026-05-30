@@ -1,0 +1,146 @@
+---
+description: ZF2/ZF3 + PHP 7 — ativa em module.config/Module.php. Não usar em PHP 8+ nem APIs sem ZF.
+globs: ["**/module.config.php", "**/Module.php"]
+alwaysApply: false
+---
+
+# Zend Framework 2/3 + PHP 7.x
+
+Ativar em projetos Zend Framework (ZF2/ZF3) com PHP 7.x. Complementa [php7/rule.mdc](mdc:../php7/rule.mdc) e [php-security.mdc](mdc:../security/php-security.mdc). **Não** ativar junto com [php/rule.mdc](mdc:../php/rule.mdc) (PHP 8.3+) — incompatível.
+
+> **Nota de modernização:** Zend Framework foi descontinuado em 2020 e migrado para [Laminas Project](https://getlaminas.org). Em projetos legados, manter compatibilidade com ZF2/ZF3; ao criar funcionalidades novas, avaliar extração para classes desacopladas do framework para facilitar eventual migração.
+
+## Runtime e ambiente
+- PHP 7.1–7.4 (conforme projeto); documentar versão em `composer.json` (`"require": {"php": "^7.x"}`).
+- **Proibido** usar recursos de PHP 8.x (enums, named arguments, fibers, readonly) em código ZF2/ZF3 legado — manter compatibilidade.
+- `declare(strict_types=1)` **obrigatório** em código novo; em arquivos legados existentes, não alterar sem revisão.
+- Gerenciador de pacotes: **Composer**; `composer.json` + `composer.lock` como fonte de verdade.
+- Namespace raiz configurado em `composer.json` (`autoload.psr-4`); seguir **PSR-4**.
+
+## ServiceManager (IoC Container)
+- **Sempre** registrar serviços via `ServiceManager` — **proibido** instanciar dependências com `new` diretamente em classes de negócio.
+- Factories explícitas para serviços complexos (`InvokableFactory` apenas para classes sem dependências).
+- Configuração de serviços em `module.config.php` sob a chave `'service_manager'` ou via `Module::getServiceConfig()`.
+- **Proibido** `ServiceLocatorAwareInterface` em código novo (deprecado no ZF2, removido no ZF3) — usar constructor injection.
+- Aliases declarados explicitamente; **proibido** depender de resolução implícita de nome de classe.
+
+```php
+// Correto — Factory com injeção explícita
+class UserServiceFactory implements FactoryInterface
+{
+    public function __invoke(ContainerInterface $container, $requestedName, ?array $options = null): UserService
+    {
+        return new UserService(
+            $container->get(UserRepositoryInterface::class),
+            $container->get(LoggerInterface::class)
+        );
+    }
+}
+```
+
+## Estrutura modular
+- Código organizado em **módulos** (`module/NomeModulo/`); cada módulo é autocontido.
+- `Module.php` na raiz do módulo implementa os métodos necessários (`getConfig()`, `getAutoloaderConfig()` para ZF2).
+- **Proibido** acoplamento direto entre módulos — comunicação via eventos (`EventManager`) ou serviços compartilhados.
+- Configuração de roteamento, controllers e serviços dentro do próprio módulo (`module.config.php`).
+
+## Controllers
+- Herdar `AbstractActionController` (ZF MVC) ou `AbstractRestfulController` para APIs REST.
+- **Controllers magros**: validar entrada via `InputFilter`, delegar ao Service, retornar `ViewModel` ou `JsonModel`.
+- **Proibido** lógica de negócio no controller — extrair para classes de Service.
+- Usar `$this->params()` para acessar parâmetros de rota e query — **proibido** acessar `$_GET`/`$_POST` diretamente.
+- Retornar `JsonModel` para endpoints de API; **proibido** `echo` direto no controller.
+
+```php
+// Correto — controller magro com delegate para service
+public function createAction(): JsonModel
+{
+    $data = $this->params()->fromPost();
+    $result = $this->userService->create($data);
+    return new JsonModel(['data' => $result]);
+}
+```
+
+## Input Filters e Validação
+- **InputFilter** obrigatório para validação de entrada em controllers e forms.
+- **Proibido** validação manual com `if (empty($data['field']))` espalhada no controller — centralizar no `InputFilter`.
+- Usar `Zend\Validator\*` (ZF2) / `Laminas\Validator\*` para regras de validação reutilizáveis.
+- Sanitização com `Zend\Filter\*`; **proibido** contar com sanitização implícita do PHP.
+- `InputFilterAwareInterface` nos modelos/DTOs para facilitar bind de dados.
+
+## Roteamento
+- Rotas configuradas em `module.config.php` sob a chave `'router'`.
+- Usar **Segment** routes para APIs REST; **Literal** routes para rotas fixas.
+- **Proibido** rotas genéricas (`/:controller/:action`) em produção sem restrição explícita de constraints.
+- Nomear todas as rotas para uso com `$this->url('nome-da-rota', [...])` — **proibido** hardcodar URLs.
+
+## View Layer
+- Templates em `module/NomeModulo/view/nome-modulo/controller/action.phtml`.
+- **Proibido** lógica de negócio em views `.phtml` — apenas lógica de apresentação.
+- View Helpers para lógica de apresentação reutilizável — **proibido** duplicar código de formatação entre views.
+- `$this->escapeHtml()` obrigatório ao exibir dados de usuário — **proibido** exibir variáveis sem escape.
+- Layouts aninhados via `$this->layout()` e placeholders.
+
+## Persistência com Doctrine 2 (quando usado)
+- Mapeamento de entidades via **annotations** (`@ORM\Entity`, `@ORM\Column`) em PHP 7.x (attributes não disponíveis).
+- Repositories com interface — **proibido** query em entidades ou controllers.
+- DQL parametrizado ou QueryBuilder — **proibido** concatenar input em DQL/SQL.
+- Evitar **N+1**: `JOIN FETCH` em DQL ou `addSelect` + `join` no QueryBuilder.
+- `EntityManager` injetado via Factory — **proibido** `$container->get('doctrine.entitymanager.orm_default')` inline em classes de negócio.
+
+```php
+// Correto — DQL parametrizado
+$query = $em->createQuery('SELECT u FROM App\Entity\User u WHERE u.email = :email');
+$query->setParameter('email', $email);
+```
+
+## Persistência com Zend\Db (quando usado)
+- Usar `TableGateway` ou `Sql` para queries parametrizadas — **proibido** SQL raw com concatenação.
+- `Adapter` injetado via ServiceManager — **proibido** instanciar diretamente com credenciais hardcodadas.
+- Transações explícitas via `$adapter->getDriver()->getConnection()` para operações multi-tabela.
+
+## EventManager
+- Usar `EventManager` para desacoplar side-effects (auditoria, cache, notificações).
+- **Proibido** chamar serviços externos diretamente no fluxo principal quando são side-effects — usar eventos.
+- Listeners registrados em `Module.php` via `onBootstrap()` ou configuração de `listeners`.
+- Prioridades de listener explícitas quando a ordem importa.
+
+## Autenticação e Autorização
+- **Zend\Authentication\AuthenticationService** para autenticação — **proibido** gerenciar sessão de auth manualmente.
+- **Zend\Permissions\Acl** ou **Zend\Permissions\Rbac** para controle de acesso.
+- Verificação de permissão em Plugin de Controller ou via `MvcEvent::EVENT_DISPATCH` — **proibido** verificação inline inconsistente.
+- **Obrigatório** verificar posse do recurso antes de retornar ou mutar dados (IDOR).
+- Sessões via `Zend\Session` — **proibido** `$_SESSION` diretamente.
+
+## Migração para Laminas
+- Namespace `Zend\*` foi renomeado para `Laminas\*`; ferramenta de migração: `laminas/laminas-migration`.
+- Em código novo dentro de projeto legado, preferir interfaces desacopladas do framework para facilitar eventual migração.
+- **Proibido** aprofundar acoplamento com namespaces `Zend\*` em funcionalidades novas — usar abstrações.
+- Componentes Laminas são retrocompatíveis com ZF3 via shim; avaliar adoção incremental.
+
+## Testes
+- **PHPUnit** para testes; ZF fornece `Zend\Test\PHPUnit` para testes MVC integrados.
+- `AbstractHttpControllerTestCase` para testes funcionais de controller sem servidor real.
+- ServiceManager configurado com mocks em `setUp()` — **proibido** usar ServiceManager de produção em testes unitários.
+- Padrão AAA (Arrange / Act / Assert) em todos os testes.
+- Fixtures de banco via `doctrine/data-fixtures` (com Doctrine) ou setup manual com rollback por transação.
+
+```php
+// Correto — controller test com ServiceManager mockado
+protected function setUp(): void
+{
+    parent::setUp();
+    $this->setApplicationConfig(include __DIR__ . '/../../config/application.config.php');
+    $this->getApplicationServiceLocator()->setAllowOverride(true);
+    $this->getApplicationServiceLocator()->setService(
+        UserService::class,
+        $this->createMock(UserService::class)
+    );
+}
+```
+
+## Qualidade
+- Análise estática: **PHPStan** nível ≥ 5 (PHP 7.x tem limitações; ajustar baseline para código legado) ou **Psalm**.
+- Linter: **PHP_CodeSniffer** (PSR-2 para ZF2 legacy, PSR-12 para código novo).
+- **Proibido** `@phpstan-ignore` ou `@suppress` sem comentário explicando o motivo.
+- Baseline do PHPStan para erros legados existentes — novos erros não entram sem correção.

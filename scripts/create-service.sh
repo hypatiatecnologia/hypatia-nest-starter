@@ -73,6 +73,7 @@ cd "$TARGET_DIR"
 git init -q
 echo "Done. Next steps:"
 echo "  cd ${TARGET_DIR}"
+echo "  # Open in Cursor — .cursor/ config included"
 echo "  npm install"
 echo "  docker compose up -d postgres redis rabbitmq"
 echo "  npx prisma migrate deploy"

@@ -1,0 +1,44 @@
+---
+description: Restrições contra over-engineering em código gerado
+alwaysApply: true
+---
+
+# Cognitive Complexity Guardrails
+
+Precedência geral: [_shared/precedence.md](mdc:../_shared/precedence.md). Harmonizar com [architecture/rule.mdc](mdc:../architecture/rule.mdc): uma **porta estável** na fronteira domínio ↔ infra (mesmo com uma só implementação concreta) não viola esta rule — proibir apenas **abstrações internas especulativas** sem segunda necessidade real.
+
+## Restrições positivas (sempre aplicar)
+- Funções: máximo **30 linhas** de código (excluindo doc/whitespace).
+- Profundidade de nesting: máximo **3 níveis** (if dentro de for dentro de if já é o limite).
+- Parâmetros por função: máximo **4**. Acima disso, agrupe em objeto/struct nomeado.
+- Cognitive complexity por função: ≤15. Ferramenta padrão por stack:
+  - **TypeScript/JS**: `eslint-plugin-sonarjs` (regra `cognitive-complexity`) ou `lizard`.
+  - **Python**: `radon` (`radon cc -s`) ou `lizard`.
+  - **Java/Kotlin**: SonarQube/SonarLint ou `lizard`.
+  - **Go**: `gocognit` (`gocognit -over 15 ./...`).
+  - **PHP**: `phpmd` (regra `CyclomaticComplexity`) ou `lizard`.
+  - Em CI, prefer `lizard` como ferramenta multi-linguagem com threshold uniforme.
+- **Pipeline da biblioteca padrão:** em filtragem/transformação de coleções, prefira formas idiomáticas (`stream`/`map`/`filter`, comprehensions, LINQ, cadeias de `slice`/helpers em Go, etc.) a laços longos cheios de ramificações — costuma cortar nesting e cognitive complexity sem mudar a regra do negócio.
+- **Cheiro típico de saída de LLM:** desconfie de função-canivete (validação + transformação + persistência + efeito colateral no mesmo corpo), cadeias defensivas de null/vazio no meio do fluxo em vez da fronteira e `else` que duplica o caminho feliz; corrija com guard clauses, extração por intenção e validação única na borda — e evite flags booleanos no método que combinam comportamentos (`doX`, `async`, `retry`); prefira métodos ou estratégias separadas.
+- Helpers (funções privadas) só são introduzidos se chamados **≥2 vezes** ou se nomear uma intenção complexa que melhora leitura no chamador.
+
+## Restrições negativas
+- **Proibido** envolver uma função inteira em `try`/`catch` ou `try`/`except` só para “não quebrar”. Capture exceções **perto da causa** quando há recuperação definida; caso contrário propagar até o boundary da stack ([errors-and-logging/rule.mdc](mdc:../errors-and-logging/rule.mdc)).
+- **Proibido** classe quando função pura resolve. Classe sem estado é candidata a função.
+- **Proibido** introduzir `interface`/`trait`/`protocol` **só por antecipação** de futura segunda implementação dentro do módulo. **Permitido** contrato na **fronteira arquitetural** (porta DIP), com um adapter real, quando o limite domínio ↔ infra for explícito.
+- **Proibido** padrões enterprise (Factory, Strategy, Repository, etc.) sem requisito claro de extensão ou variantes já existentes.
+- **Evite** parâmetros opcionais com default só “para flexibilidade futura” — YAGNI.
+- **Evite** comentário que apenas descreve **o quê**; comente **porquê** quando não for óbvio.
+
+## Naming orientado ao domínio
+- Verbos específicos de negócio: `chargeUser`, `validateCpf`, `loadInvoice` — **proibido** desfocar para `processData`, `handleEvent`, `manageItem`.
+- Prefixos booleans (`is`/`has`/`can`/`should`) e restante casing: seguir [naming-and-files/rule.mdc](mdc:../naming-and-files/rule.mdc).
+
+## Quando complexidade adicional É justificada
+- O **domínio** exige (ex.: máquina de estado real, retry com circuit breaker em integração crítica, cripto).
+- Há **dois ou mais implementadores reais** da mesma abstração (não hipotéticos).
+- Performance **medida** exige otimização explícita.
+- Compliance ou **segurança** obrigam (ex.: separar contexto auth de dados).
+
+## Princípio
+> Mostre primeiro a versão mais simples que funciona; acrescente complexidade **incrementalmente** com justificativa em commit ou PR.

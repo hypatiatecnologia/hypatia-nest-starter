@@ -1,0 +1,70 @@
+---
+description: Laravel 11+ — Eloquent, queues, Sanctum. Não usar em Symfony nem PHP sem Laravel.
+globs:
+  - artisan
+  - "app/Http/Controllers/**/*.php"
+  - "app/Http/Requests/**/*.php"
+  - "app/Models/**/*.php"
+  - "routes/api.php"
+  - "routes/web.php"
+alwaysApply: false
+---
+
+# Laravel 11+
+
+Ativar em projetos Laravel. Complementa [php/rule.mdc](mdc:../php/rule.mdc) e [php-security.mdc](mdc:../security/php-security.mdc). Segurança: [php-security.mdc](mdc:../security/php-security.mdc). Erros: [errors-and-logging/rule.mdc](mdc:../errors-and-logging/rule.mdc). Arquitetura: [architecture/rule.mdc](mdc:../architecture/rule.mdc).
+
+## Estrutura e convenções
+- **Controllers magros**: validar entrada, delegar ao Service/Action, mapear resposta — sem lógica de negócio.
+- **Form Requests** obrigatórios para validação de entrada (herdar `FormRequest`); **proibido** `$request->validate()` inline para regras complexas.
+- **Resources** (`JsonResource`) para serialização de resposta — **proibido** retornar modelo Eloquent diretamente em JSON.
+- **Actions** (ou Services) como classes de caso de uso únicas: `class CreateInvoice { public function handle(...) }`.
+- Rotas em `routes/api.php` (API) e `routes/web.php` (web); nomes de rota em `kebab-case`.
+
+## Service Container e injeção de dependência
+- **Constructor injection** para dependências obrigatórias; **method injection** para dependências opcionais de rota.
+- Registrar bindings em **Service Providers** (`AppServiceProvider` ou providers dedicados) — **proibido** `app()` helper como service locator em classes de domínio.
+- Interfaces ligadas a implementações no container — facilita testes com mocks.
+
+## Eloquent
+- **Proibido** mass assignment sem `$fillable` ou `$guarded = ['*']` — usar `$fillable` explícito.
+- **Proibido** `all()` ou `get()` sem `where`/`limit` em tabelas que crescem indefinidamente — usar paginação (`paginate()`, `cursorPaginate()`).
+- Evitar **N+1**: `with()` para eager loading de relações usadas no loop; `withCount()` para contagens.
+- Scopes locais (`scopeActive`, etc.) para queries reutilizáveis — **proibido** duplicar where em múltiplos lugares.
+- **Soft deletes** via `SoftDeletes` trait quando a entidade requer histórico.
+- Events e Observers para side-effects do modelo — **proibido** lógica de negócio em callbacks de model (`boot()`).
+
+## Autenticação e autorização
+- **Sanctum** para SPA/mobile (token stateless) ou sessão stateful; **Passport** apenas quando OAuth2 completo é exigido.
+- **Policies** e **Gates** para autorização — **proibido** lógica `if ($user->role === 'admin')` espalhada nos controllers.
+- `$this->authorize()` ou `Gate::authorize()` antes de qualquer operação que acesse recurso de outro usuário (IDOR).
+- Middleware `auth:sanctum` obrigatório em rotas protegidas.
+
+## Queues e Jobs
+- Jobs no diretório `app/Jobs/`; implementar `ShouldQueue` para tarefas assíncronas.
+- **Sempre** definir `$tries`, `$timeout` e `backoff()` em jobs de produção.
+- **Proibido** lógica pesada de negócio dentro de `handle()` diretamente — delegar para Actions/Services.
+- Usar `Horizon` para monitorar filas Redis em produção.
+- **Proibido** disparar jobs dentro de transactions do banco sem usar `afterCommit()`.
+
+## Cache
+- Cache via facade `Cache` com TTL explícito — **proibido** TTL `0` (sem expiração) em caches de dados de usuário.
+- `remember()` / `rememberForever()` para padrões cache-aside; invalidação explícita em eventos de mutação.
+- Tags de cache (`Cache::tags()`) para invalidação granular em Redis.
+
+## Migrations e Schema
+- Migrations **reversíveis**: implementar `down()` funcional.
+- **Proibido** alterar migrations já publicadas em produção — criar nova migration de correção.
+- Colunas sensíveis com `->nullable()` apenas quando o dado realmente pode ser nulo semanticamente.
+- Foreign keys com `constrained()` e política de cascata explícita.
+
+## Configuração e secrets
+- **Proibido** acessar `env()` fora de `config/`; usar `config('app.key')` no código da aplicação.
+- **Proibido** commitar `.env` — usar `.env.example` com placeholders.
+- `APP_DEBUG=false` obrigatório em produção; `APP_ENV=production`.
+
+## Testes (Pest preferido)
+- Feature tests para endpoints HTTP com `$this->actingAs()`; unit tests para Actions/Services isolados.
+- **Proibido** usar banco real em testes unitários — usar mocks ou in-memory SQLite com `RefreshDatabase`.
+- `Http::fake()`, `Mail::fake()`, `Queue::fake()` para isolar integrações externas.
+- Factories para todos os modelos com estados realistas (`->pending()`, `->active()`, etc.).

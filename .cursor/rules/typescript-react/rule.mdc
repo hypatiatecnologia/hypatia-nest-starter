@@ -1,0 +1,60 @@
+---
+description: React/Next SPA — RSC, forms, a11y. Não usar em React Native nem backend Node.
+globs:
+  - next.config.js
+  - next.config.mjs
+  - next.config.ts
+  - vite.config.js
+  - vite.config.mjs
+  - vite.config.ts
+  - "app/**/*.tsx"
+  - "pages/**/*.tsx"
+  - "components/**/*.tsx"
+  - "src/app/**/*.tsx"
+  - "src/pages/**/*.tsx"
+  - "src/components/**/*.tsx"
+alwaysApply: false
+---
+
+# TypeScript / React (frontend)
+
+Ativar para UI em React, Next ou SPA (mobile nativo: [typescript-react-native/rule.mdc](mdc:../typescript-react-native/rule.mdc)).
+
+> Core TS: [typescript/rule.mdc](mdc:../typescript/rule.mdc).  
+> Segurança (XSS, DOM, env no cliente): [typescript-security.mdc](mdc:../security/typescript-security.mdc).  
+> Erros (boundaries): [errors-and-logging/rule.mdc](mdc:../errors-and-logging/rule.mdc).
+
+## SSR e hidratação
+- Sem `window`, `document`, `localStorage` ou `navigator` no topo do módulo sem guarda; usar `'use client'`, condicionais ou `useEffect`.
+- Evitar valores não-determinísticos no render (`Date.now()`, `Math.random()`) que quebrem hidratação.
+- Secrets e dados sensíveis só no servidor — nunca no bundle cliente.
+
+## React 19
+- Preferir Server Components ou camada de dados adequada ao framework; evitar `useEffect` apenas para fetching quando houver alternativa idiomática.
+- `use()` com Suspense quando o padrão do projeto o usar.
+- `'use client'` só onde há interação ou hooks de cliente estritamente necessários.
+- `startTransition` para updates não urgentes; formulários com Server Actions quando o framework aplicar (ex. App Router).
+
+## Estado
+- Estado de servidor: TanStack Query ou SWR; cliente: `useState`/`useReducer`; estado na URL quando melhorar partilha e bookmarking.
+- Evitar Context global para valores que mudam com alta frequência sem necessidade real.
+
+## Formulários
+- **React Hook Form** + **Zod** resolver; tipos alinhados ao schema; servidor continua fonte de verdade na validação.
+
+## UI / i18n
+- Seguir convenção de styling do projeto (Tailwind, CSS Modules, etc.); não misturar sistemas sem motivo.
+- Design tokens como variáveis; strings usuário via biblioteca i18n — sem concatenação frágil de traduções.
+
+## Testes
+- Vitest ou Jest + Testing Library + `user-event`; MSW na fronteira HTTP; evitar snapshots como único teste.
+
+## Acessibilidade
+- HTML semântico primeiro; teclado e foco visível; contraste WCAG habitual; animações condicionadas a `prefers-reduced-motion`.
+
+## Performance
+- Code-split por rota quando aplicável; `memo`/`useMemo`/`useCallback` só quando o perf mostrar ganho.
+
+## XSS e redirects
+- Evitar `dangerouslySetInnerHTML` para input de usuárioes; sanitizar só com biblioteca aprovada se inevitável.
+- Redirects pós-login ou open redirect protegidos com allowlist.

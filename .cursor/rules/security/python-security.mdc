@@ -1,0 +1,48 @@
+---
+description: Padrões obrigatórios de segurança para Python (FastAPI/Django/Flask)
+globs: ["**/*.py"]
+alwaysApply: false
+---
+
+# Segurança — Python
+
+Aplicável a código `*.py`. **Precedência:** segurança acima de convenções gerais em conflito ([principles/rule.mdc](mdc:../principles/rule.mdc)).
+
+## Segredos e configuração
+- **Proibido** hardcoder segredos; **obrigatório** variáveis de ambiente + gestor de segredos aprovado.
+- **Proibido** devolver ao cliente stack traces ou credenciais nos corpos de erro.
+
+## Injeção
+- **Obrigatório** queries parametrizadas — ex.: `cursor.execute("... WHERE id = %s", (user_id,))`; **proibido** f-string ou `.format()` interpolando input em SQL.
+- ORM (**SQLAlchemy**, **Django**): **proibido** `text()` com interpolação de input externo sem binding seguro.
+- **Proibido** `eval`, `exec`, `compile` sobre input não confiável.
+- **Proibido** `pickle.loads`, `yaml.load` sem `SafeLoader`, `marshal` em dados de origem externa.
+- **Proibido** `subprocess(..., shell=True)` com input de usuário; usar lista de argumentos e sem shell quando possível.
+
+## Validação
+- **Obrigatório** validar payloads com **Pydantic v2** (ou camada aprovada); **proibido** aceitar `dict` cru na fronteira da API.
+- **Obrigatório** validar tipo, intervalo, comprimento e formato de cada campo externo.
+- **Proibido** regex de complexidade perigosa sobre input de usuário sem controlos.
+
+## HTTP externo / SSRF
+- **Proibido** passar URL de usuário diretamente a `requests`/`httpx`; **obrigatório** allowlist de host/esquema.
+- **Obrigatório** timeout em **todas** as chamadas HTTP de saída.
+
+## Autenticação e autorização
+- **Obrigatório** identidade a partir de token/sessão validados no servidor; **proibido** confiar em `user_id` só no body.
+- **Obrigatório** verificar autorização em cada endpoint que lê ou altera recurso.
+- **Obrigatório** validar **ownership** antes de devolver ou mutar recurso (IDOR).
+
+## Criptografia e identificadores
+- **Proibido** `random.random()` / `random.randint()` para tokens; usar `secrets.token_urlsafe()` / `secrets.token_bytes()`.
+- **Proibido** MD5/SHA1 para senhas; **obrigatório** **argon2** ou **bcrypt** via biblioteca aprovada.
+- **Evitar** IDs sequenciais expostos; preferir UUID ou ULID.
+
+## Erros e logs
+- **Obrigatório** mensagens genéricas ao cliente; detalhe só em log server-side.
+- **Proibido** stack trace na resposta em produção.
+- **Obrigatório** logging estruturado (`structlog` / `logging` JSON); **proibido** `print()` em produção para fluxo crítico.
+
+## HTTP de entrada
+- **Proibido** GET para mutação.
+- **Obrigatório** validar `Content-Type` e tamanho máximo do body quando aplicável.

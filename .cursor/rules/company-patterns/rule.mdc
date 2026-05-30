@@ -1,0 +1,119 @@
+---
+description: Módulos TS backend Idea (Yup, IController). Picker manual — neste repo usar nestjs-patterns.
+alwaysApply: false
+---
+
+# Padrões de empresa — backend TypeScript
+
+> Precedência: [principles](mdc:../principles/rule.mdc), [architecture](mdc:../architecture/rule.mdc), [errors-and-logging](mdc:../errors-and-logging/rule.mdc), [naming-and-files](mdc:../naming-and-files/rule.mdc), [typescript-node](mdc:../typescript-node/rule.mdc), [cognitive-complexity](mdc:../cognitive-complexity/rule.mdc).
+
+Esta rule **não** substitui as rules globais: descreve convenções **quando fizer sentido** no repositório. Módulos **sem banco** (proxy HTTP, orquestração) **não** devem ser forçados ao mesmo esqueleto que módulos **com persistência**.
+
+## Antes de adicionar infra na borda
+
+**Obrigatório** localizar em `src/` equivalentes antes de criar handler HTTP, adapter de rota, cliente HTTP, schema Yup, helper de log ou tipo de erro novo. **Preferir** estender ou reutilizar o que já existir.
+
+Pontos de partida típicos (ajustar ao repo):
+
+- HTTP: `adaptRoute`, `validateRequest`, `routes/handlers`, factories de controller.
+- Integração externa: `makeHttpRequestManager`, portas em `ports/` + `providers/`.
+- Log: `BaseService` / `ILoggingManager`; ofuscação de sensíveis nos helpers já usados no projeto.
+- Erros: classes em `infra/http/errors` e handler/middleware global de erro.
+
+**Criar algo novo é válido** quando o existente não atende (ex.: proxy com repasse transparente do upstream → adapter dedicado, conforme secção *Controller e HTTP*). Nesse caso, deixar explícito no PR ou no commit **por que** o padrão padrão não serve (contrato HTTP, envelope, upstream).
+
+## Dois perfis de módulo
+
+### A) Módulo com persistência
+
+- `feature.ts` (ou nome do módulo) — tipos do domínio/caso de uso (exports nomeados; **namespace opcional**).
+- `feature-service.ts` — interface `IFeature` + classe `FeatureService` (ou equivalente).
+- `feature-service-factory.ts` — `makeFeatureService()` com dependências injetadas.
+- `feature-controller.ts` + `feature-controller-factory.ts` quando exposto via HTTP com `IController` + adaptador de rota padrão do projeto.
+- `repositories/` — acesso a dados; estender a base de repositório do projeto quando usar DB.
+- `schemas/` — um ou mais arquivos Yup (ex.: `*-validate-schema.ts`), barrel em `schemas/index.ts` quando fizer sentido.
+- `ports/` — contratos para provedores externos quando existir integração.
+- `providers/<nome>/` — implementações concretas das portas.
+- `index.ts` — reexportar a API pública do módulo.
+
+### B) Módulo só HTTP / integração
+
+- **Sem** `repositories/` quando não há persistência neste bounded context.
+- `ports/` + `providers/<nome>/` para transporte HTTP externo ou SDK (upstream, parceiro, etc.).
+- Arquivo de tipos na raiz do módulo para params/resultados do caso de uso.
+- Serviço, factories, `schemas/` na borda; rota dedicada + **adapter** próprio se o envelope HTTP for diferente do controller padrão.
+
+**Proibido** exigir `repository` ou transação de banco em módulos que **não** acessam dados neste serviço.
+
+## Tipos e arquivo raiz do módulo
+
+- **Obrigatório** um arquivo raiz alinhado ao nome do módulo com tipos públicos do caso de uso (params, resultados, erros expostos ao adapter).
+- **`export namespace Feature` é opcional** — use quando agrupar muitos tipos; senão prefira `export type` / `export interface` no arquivo raiz.
+- Evite `Record<string, unknown>` sem necessidade; prefira tipos explícitos ou `unknown` com narrowing na borda.
+
+## Serviço
+
+- Interface `IFeature` + implementação que a implementa.
+- Construtor com dependências (logger, repositório, portas); **sem** instanciar cliente de DB ou cliente HTTP global solto — use factories e managers já adotados no repo.
+- **`traceId`**: deve fluir nos params do caso de uso quando o fluxo for rastreável; decorators ou contexto de request do projeto podem complementar.
+- **Transações**: só quando houver **múltiplas** operações de escrita coordenadas; use os helpers já existentes na base de repositório, não invente padrão fora do código do projeto.
+
+## Controller e HTTP
+
+- **Padrão REST agregado**: classe implementa `IController` (ou equivalente do repo); rota usa o adaptador HTTP padrão + factory do controller.
+- **Envelope ou fluxo diferente** (ex.: proxy que repassa corpo do upstream): **adapter dedicado** em `routes/handlers` é **válido** — não forçar o mesmo shape de resposta do controller padrão se o contrato for outro.
+
+## Validação (Yup)
+
+- Schemas em `schemas/` quando o módulo validar entrada; nomes em **kebab-case**.
+- **`traceId` no Yup só se fizer parte do body/query validado**; se vier de `locals` / middleware, **não** exija no schema do body.
+
+## Repositório e banco
+
+- Aplicável **somente** aos módulos com `repositories/` (ou camada de persistência equivalente).
+- Seguir a base de repositório e padrões de transação/auditoria **já usados** no projeto.
+
+## Cache
+
+- Só prescrever “cache-aside” quando o módulo **realmente** usar cache; seguir abstrações do projeto (`get` / `setEx`, etc., se existirem).
+
+## Logging
+
+- Preferir o padrão já usado nos services do repo (ex.: classe base + método estruturado de log).
+- Incluir contexto útil (`traceId` quando disponível, ids, motivo); **não** usar `console.log` em código de produção.
+- Dados sensíveis: **não** logar senhas/tokens; preferir **omitir** o campo no payload de log ou usar helpers **já existentes** — não exigir um nome fixo de helper se o projeto usar outro, desde que não vaze segredo.
+
+## Nomenclatura e arquivos
+
+- Arquivos/pastas: **kebab-case** (ex.: `order-service.ts`, `order-validate-schema.ts`).
+- Classes: PascalCase; interfaces de serviço: prefixo `I` quando já for padrão do módulo.
+- Factories: `makeFeatureService`, `makeFeatureController`, etc.
+
+## Barrel (`index.ts`)
+
+- Reexportar tipos, services, controllers e schemas que forem API pública do módulo; não exportar detalhes internos sem necessidade.
+
+## Erros
+
+- Alinhar a [errors-and-logging](mdc:../errors-and-logging/rule.mdc): código estável, sem stack/SQL na resposta HTTP, sem `catch` silencioso.
+
+## Testes
+
+- Mocks por **portas/interfaces**; descrever cenários feliz, erro e borda.
+- Testes de integração: transações/limpeza **se** o módulo tiver DB — não obrigatório para módulo só HTTP.
+
+## Checklist — módulo com persistência (opcional)
+
+Use quando o módulo **tiver** `repositories/` e escrita em banco.
+
+- [ ] Arquivo raiz de tipos + `IFeature` / serviço / factory + repositório estendendo `BaseRepository` + schemas Yup + `index.ts` exportando a API pública.
+- [ ] Rota com validação na borda (`validateRequest`) e adaptador HTTP do projeto (`adaptRoute` + factory), salvo exceção já usada no repo (ex.: adapter dedicado para envelope diferente).
+- [ ] Várias gravações coordenadas: usar `initializeTransaction`, `commitTransaction` e `rollbackTransaction` de `BaseRepository` em `src/modules/shared/base-repository.ts` (ou o padrão de transação já adotado nos repositórios existentes — ex.: passar `transaction` opcional no método, como em `SplitRepository`).
+- [ ] Integração: estado inicial conhecido; rollback ou truncate conforme convenção do time; não exigir o mesmo em módulo só HTTP.
+
+Exemplo mínimo de transação: [_shared/company-patterns-transaction.md](mdc:../_shared/company-patterns-transaction.md). Se existir `docs/company-patterns-examples.md` no repositório, preferir o doc local.
+
+## O que esta rule não faz
+
+- **Não** inventa scripts de CI — use apenas o que existir no `package.json` do repositório (`lint`, `test`, `build`, etc., com **npm**, **yarn**, **pnpm** ou **bun**, conforme o projeto).
+- **Não** substitui thresholds de complexidade: seguir [cognitive-complexity](mdc:../cognitive-complexity/rule.mdc) e ferramentas configuradas no repo.

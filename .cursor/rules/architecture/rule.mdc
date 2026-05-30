@@ -1,0 +1,47 @@
+---
+description: SOLID aplicado, camadas e regra de dependências (Ports & Adapters)
+alwaysApply: true
+---
+
+# Arquitetura — SOLID e camadas
+
+> Princípios e **precedência**: [principles/rule.mdc](mdc:../principles/rule.mdc), [_shared/precedence.md](mdc:../_shared/precedence.md). Refactors grandes: **Plan Mode** (`Shift+Tab`) antes de mudanças amplas de camadas.  
+> Erros/logging: [errors-and-logging/rule.mdc](mdc:../errors-and-logging/rule.mdc).  
+> Contratos HTTP públicos: [openapi-contracts/rule.mdc](mdc:../openapi-contracts/rule.mdc) (quando ativa).  
+> Complexidade (abstrações internas vs portas): [cognitive-complexity/rule.mdc](mdc:../cognitive-complexity/rule.mdc).
+
+## Objetivo
+Modularidade e manutenção com o **mínimo** de camadas e abstrações que separam **regras de negócio** de **detalhes de entrega** (HTTP, persistência, filas, SDKs).
+
+## SOLID (uso prático)
+- **SRP**: um módulo com uma razão principal para mudar; se acumula responsabilidades ortogonais, divida.
+- **OCP**: prefira estender com novos casos/tipos quando regras variam; evite “crescer” o núcleo com ramos para cada exceção.
+- **LSP**: substituições respeitam o contrato; sem surpresas de pré/pós-condição ou exceções fora do esperado.
+- **ISP**: interfaces pequenas nas fronteiras; clientes não carregam métodos que não usam.
+- **DIP**: domínio/casos de uso não dependem de concretizações de infra; dependências apontam para **portas** (abstrações) na borda interior, implementadas por adaptadores — **nem toda porta tem dois implementadores**; uma única adapter concreta vale quando o contrato estável fixa o limite domínio ↔ infra (ver [cognitive-complexity/rule.mdc](mdc:../cognitive-complexity/rule.mdc)).
+
+## Camadas e dependências
+- **Domínio**: entidades e regras puras; sem acoplamento a framework web, ORM ou cliente HTTP quando evitável.
+- **Aplicação (casos de uso)**: orquestra o domínio; políticas de aplicação e transação quando aplicável.
+- **Adaptadores**: handlers HTTP, repositórios concretos, consumidores de fila; traduzem DTOs/modelos externos ↔ modelo de domínio.
+- **Regra de dependência**: o interior **não importa** o exterior; o exterior conhece o interior via interfaces explícitas.
+
+### Tabela de imports permitidos entre camadas
+
+| Camada origem | Pode importar de | Proibido importar de |
+|---|---|---|
+| Domínio | (nada além de stdlib e tipos puros) | Aplicação, Adaptadores, Frameworks, ORM, HTTP |
+| Aplicação | Domínio | Adaptadores, Frameworks HTTP, ORM direto |
+| Adaptadores | Aplicação, Domínio (portas) | Outros Adaptadores diretamente* |
+| Frameworks/Infra | Adaptadores, Aplicação | Domínio (exceto via porta) |
+
+\* Adaptadores se comunicam via eventos ou casos de uso da camada de Aplicação, nunca por referência direta entre si.
+
+## Fronteiras
+- Valide e normalize entradas na borda; preserve invariantes antes de operações de domínio.
+- Erros: mapeie falhas de infra para o tipo de falha acordado no contrato do caso de uso (domínio vs. técnico), de forma consistente no projeto ([errors-and-logging/rule.mdc](mdc:../errors-and-logging/rule.mdc)).
+
+## Anti-padrões
+- Serviço “deus” que mistura transporte, SQL e regra de negócio no mesmo módulo.
+- Modelos/DTOs de API ou entidades ORM como **tipo público** através de todas as camadas.
+- Regra de negócio pesada em controllers/handlers/presenters — mover para caso de uso ou domínio.

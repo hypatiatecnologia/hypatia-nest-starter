@@ -1,0 +1,22 @@
+---
+description: Português do Brasil (pt-BR) em respostas e documentação gerada pelo agente
+alwaysApply: true
+---
+
+# Idioma — português do Brasil
+
+Toda **prosa** que o agente produzir para o usuário (chat, resumos, descrições de PR/commit sugeridas, arquivos Markdown novos que forem texto explicativo) deve estar em **português do Brasil (pt-BR)**, não em português de Portugal nem mistura com espanhol.
+
+## Vocabulário e grafia preferenciais (exemplos)
+- **usuário**, **equipe**, **arquivo**, **aplicativo**; em contexto tech, *app* é aceitável se já for padrão no repositório.
+- **otimização**, **implementação**, **atualização** (evitar formas como *optimização* ou *Actual*).
+- Instruções e texto ao usuário: alinhar ao estilo **você** já usado nos comandos deste pacote (ex.: imperativos **Verifique**, **Leia**).
+
+## Evitar (registro europeu típico)
+- **Utilizador** → usuário · **ficheiro** → arquivo (exceto quando for nome literal de path/API externa).
+
+## Trechos excluídos
+- Identificadores, paths, comandos CLI, mensagens de erro verbatim da ferramenta em inglês e RFCs permanecem no idioma original.
+- **Código-fonte** (nomes de símbolo, strings exigidas por biblioteca) não se traduz.
+
+Esta rule **não** substitui [principles](mdc:../principles/rule.mdc) nem as rules de **security**; apenas padroniza **língua** em redação em português.

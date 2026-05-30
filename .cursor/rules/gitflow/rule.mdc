@@ -1,0 +1,36 @@
+---
+description: Branches e PRs; commits via commitlint do repo ou _shared/commit-message. Não usar para código de aplicação.
+globs:
+  - commitlint.config.js
+  - commitlint.config.cjs
+  - commitlint.config.mjs
+  - commitlint.config.ts
+  - .husky/commit-msg
+  - .husky/**
+  - "**/.github/**"
+  - ".gitlab-ci.yml"
+alwaysApply: false
+---
+
+# Git Workflow
+
+> **Commits (mensagem):** seguir integralmente [`~/.cursor/commands/_shared/commit-message.md`](../../commands/_shared/commit-message.md) quando existir `commitlint.config.js` na raiz; senão o fallback do mesmo arquivo. Commands `/commit`, `/revisao-pr` e `/pr` já incorporam isso — **não** duplicar tipos, limites ou prefixos aqui.
+
+## Branches
+
+- Branch estável: **`main`** ou **`develop`** conforme o repositório (ver `git remote show origin`, README ou workflows em `.github/`). Nada faz commit direto na estável.
+- Feature: `feat/<scope>-<short-desc>`; fix: `fix/<scope>-<short-desc>`; chore: `chore/<scope>-<short-desc>`.
+- Branches com ticket costumam usar o prefixo no nome (ex.: `PLAT-262/feature-partner-login`).
+
+## Commits
+
+- Se existir `commitlint.config.js` na raiz: ler o arquivo + validar com `npx commitlint` (ver `_shared/commit-message.md`).
+- Se **não** existir commitlint: Conventional Commits genérico (fallback em `_shared/commit-message.md`).
+- **Nunca** "WIP", "fix stuff", "temp".
+
+## PRs
+
+- Título alinhado ao commitlint do repo quando existir; senão Conventional Commits.
+- Descrição: contexto, mudança, como testar, screenshot quando UI.
+- Atualizar a branch com a **base do repo** (`develop`, `main` ou a branch padrão do projeto) antes do merge.
+- Squash em merge quando for política do time.

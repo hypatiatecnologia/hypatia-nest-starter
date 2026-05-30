@@ -1,0 +1,74 @@
+---
+description: Symfony 7+ — DI, Doctrine, Messenger. Não usar em Laravel nem ZF legado.
+globs:
+  - symfony.lock
+  - config/services.yaml
+  - config/packages/**/*.yaml
+  - "src/Controller/**/*.php"
+  - "src/Entity/**/*.php"
+  - "src/MessageHandler/**/*.php"
+alwaysApply: false
+---
+
+# Symfony 7+
+
+Ativar em projetos Symfony. Complementa [php/rule.mdc](mdc:../php/rule.mdc) e [php-security.mdc](mdc:../security/php-security.mdc). Segurança: [php-security.mdc](mdc:../security/php-security.mdc). Erros: [errors-and-logging/rule.mdc](mdc:../errors-and-logging/rule.mdc). Arquitetura: [architecture/rule.mdc](mdc:../architecture/rule.mdc).
+
+## Injeção de dependência (DI Container)
+- **Constructor injection** para todas as dependências — **proibido** `$container->get()` em classes de domínio.
+- Serviços **privados por padrão** (`public: false`) — expor publicamente apenas quando necessário para testes de aceitação.
+- Autowiring habilitado; sobrescrever com configuração explícita em `services.yaml` apenas quando há ambiguidade.
+- **Proibido** `ContainerAwareInterface` em código novo — usar injeção direta.
+
+## Controllers
+- Controllers como serviços (herdar `AbstractController` opcional, mas não obrigatório).
+- **Controllers magros**: validar entrada, delegar ao Command/Query Handler ou Service, retornar Response.
+- **Proibido** lógica de negócio no controller — separar em classes de caso de uso.
+- `#[Route]` attributes (PHP 8) como padrão para definição de rotas.
+- `#[MapRequestPayload]` / `#[MapQueryString]` (Symfony 6.3+) para deserialização e validação de entrada.
+
+## Doctrine ORM
+- Mapeamento via **attributes PHP** (`#[ORM\Entity]`, `#[ORM\Column]`, etc.) — **proibido** XML/YAML para projetos novos.
+- **Repositories** como classes concretas com interface — **proibido** lógica de query em entidades.
+- Queries **sempre** com DQL parametrizado ou QueryBuilder — **proibido** DBAL com concatenação de input.
+- Evitar **N+1**: joins explícitos ou `->join()` no QueryBuilder quando relações são lidas em ciclo.
+- **Paginação obrigatória** (Pagerfanta ou KnpPaginator) em listagens sem limite fixo.
+- Migrations com `doctrine/migrations`; **proibido** alterar migrations já executadas em produção.
+
+## Messenger (Command/Event Bus)
+- **Commands** (mutam estado) e **Queries** (leem estado) em classes separadas — padrão CQRS.
+- **Handlers** como serviços com `#[AsMessageHandler]`; um handler por mensagem (SRP).
+- **Eventos de domínio** disparados via Messenger para desacoplar side-effects.
+- `$middleware` configurado explicitamente; `DoctrineTransactionMiddleware` para garantir atomicidade.
+- **Proibido** dispatch síncrono de mensagens dentro de transactions sem considerar rollback.
+
+## Serializer e Validação
+- **Symfony Serializer** para serialização/deserialização; grupos de serialização (`#[Groups]`) para controle de campos expostos por contexto.
+- **Symfony Validator** com `#[Assert\*]` attributes — **proibido** validação manual com `if` espalhado.
+- **Proibido** retornar entidade Doctrine diretamente como resposta JSON — usar DTOs com grupos de serialização.
+- `#[Assert\NotBlank]`, `#[Assert\Length]`, `#[Assert\Email]` em todo campo de fronteira.
+
+## Security Component
+- Voters para lógica de autorização complexa — **proibido** `is_granted()` com lógica inline no controller.
+- `#[IsGranted]` attribute no controller para autorização simples.
+- **Obrigatório** verificar posse do recurso (IDOR) antes de retornar ou mutar dados.
+- Firewalls configurados em `security.yaml`; rotas sensíveis protegidas por `access_control`.
+- CSRF habilitado para formulários web; **proibido** desativar sem justificativa documentada.
+
+## API Platform (quando usado)
+- `#[ApiResource]` com `operations` explícitas — **proibido** expor todas as operações por padrão sem revisão.
+- Estado customizado via `StateProvider` e `StateProcessor` — **proibido** lógica de negócio em entidades Doctrine usadas como API resources.
+- Grupos de serialização por operação (`normalizationContext`, `denormalizationContext`).
+- **Filtros** habilitados explicitamente por campo — **proibido** `SearchFilter` em campos sensíveis sem autenticação.
+
+## Configuração e ambiente
+- **Proibido** acessar `$_ENV` diretamente — usar parâmetros do container (`%env(VAR)%`) ou `#[Autowire(env: 'VAR')]`.
+- **Proibido** commitar `.env.local`, `.env.prod` — apenas `.env` com valores padrão não sensíveis.
+- `APP_DEBUG=false` e `APP_ENV=prod` obrigatórios em produção.
+- Secrets sensíveis via **Symfony Secrets Vault** (`secrets:set`) em produção.
+
+## Testes
+- **PHPUnit** com `KernelTestCase` para testes de integração e `WebTestCase` para testes funcionais HTTP.
+- **Proibido** usar banco real em testes unitários — usar `DoctrineFixturesBundle` com transação revertida (`DBAL\Connection::beginTransaction` + rollback) ou SQLite in-memory.
+- `WebTestCase::createClient()` para simular requests sem servidor real.
+- `MockObject` para dependências externas em unit tests — **proibido** depender de estado global.

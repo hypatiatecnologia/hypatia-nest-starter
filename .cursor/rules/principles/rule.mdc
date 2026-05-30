@@ -1,0 +1,30 @@
+---
+description: Princípios universais de desenvolvimento (KISS, DRY, Fail Fast, Clean Code)
+alwaysApply: true
+---
+
+# Development Principles
+
+> Ver também: [linguagem-pt-br](mdc:../linguagem-pt-br/rule.mdc) · [architecture](mdc:../architecture/rule.mdc) · [errors-and-logging](mdc:../errors-and-logging/rule.mdc) · [naming-and-files](mdc:../naming-and-files/rule.mdc) · [cognitive-complexity](mdc:../cognitive-complexity/rule.mdc). Overlays de stack e segurança são carregados automaticamente por `globs` ou ativados via picker.
+
+## Precedência entre rules
+
+Lista completa (rules, commands, skills, symlink): [_shared/precedence.md](mdc:../_shared/precedence.md).
+
+Resumo: **security** → **architecture** + **cognitive-complexity** → **company-patterns** (se aplicável) → stack → **errors-and-logging** → **openapi-contracts**. Commits: `_shared/commit-message.md` nos commands.
+
+Em dúvida: alternativa **mais segura** e com **menos vazamento** de dados internos.
+
+## KISS / YAGNI / DRY
+- Mantenha o código simples; o mais simples que funciona vence o mais elegante.
+- Não implemente o que não é necessário agora.
+- Extraia funcionalidade comum em funções reutilizáveis; uma única fonte de verdade por regra de negócio.
+
+## Fail Fast
+- Valide entradas no início da função.
+- Early returns para condições de erro.
+- Falhas detectadas e comunicadas o mais cedo que fizer sentido.
+
+## Return Early
+- Edge cases primeiro; caminho feliz linear.
+- Reduzir nesting com retornos antecipados.

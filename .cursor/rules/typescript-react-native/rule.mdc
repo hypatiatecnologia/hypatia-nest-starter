@@ -1,0 +1,56 @@
+---
+description: React Native/Expo — listas, secure storage, deep links. Não usar em React web.
+alwaysApply: false
+---
+
+# React Native + Expo
+
+Ativar para apps **React Native** ou **Expo** (não confundir com web: ver [typescript-react/rule.mdc](mdc:../typescript-react/rule.mdc)).
+
+> Core TS: [typescript/rule.mdc](mdc:../typescript/rule.mdc).  
+> Segurança geral (logs, segredos, validação de input): [typescript-security.mdc](mdc:../security/typescript-security.mdc).  
+> Erros/logging e crash reporting: [errors-and-logging/rule.mdc](mdc:../errors-and-logging/rule.mdc).
+
+## Navegação
+- `@react-navigation/native` com rotas tipadas (ex. `RootStackParamList`).
+- Lazy de telas **conforme o padrão do projeto**: `React.lazy` + Suspense onde suportado, API de lazy do React Navigation, ou code-splitting do bundler — não supor um único mecanismo sem ver config existente.
+- **Deep links**: validar payload e **allowlist** de destinos; nunca `eval` nem `require` dinâmico a partir de URL.
+
+## Performance
+- Listas longas: `FlatList` ou **FlashList** em vez de `ScrollView` com muitos filhos.
+- Em renderers quentes: `useMemo` / `useCallback`; itens de lista com `React.memo` quando medido.
+- `getItemLayout` quando a altura da linha é fixa.
+- Evitar objetos de estilo inline `{ style: { ... } }` em caminhos quentes — `StyleSheet.create` ou estilos estáveis.
+- Trabalho pesado pós-animar: `InteractionManager.runAfterInteractions`.
+- Imagens: preferir **`expo-image`** (cache, WebP, placeholder) em vez de `Image` cru quando o projeto já usa Expo.
+
+## Plataforma e nativo
+- Ramificações pequenas: `Platform.OS`; arquivos `*.ios.tsx` / `*.android.tsx` para bifurcações maiores.
+- Evitar APIs privadas ou não documentadas.
+- **New Architecture** (Fabric / TurboModules): preferir em greenfield; confirmar compatibilidade das libs antes de adotar.
+
+## Armazenamento
+- Dados não sensíveis: `@react-native-async-storage/async-storage` ou **MMKV** (conforme stack do projeto).
+- **Segredos e tokens**: `expo-secure-store` (Keychain / Keystore) — **nunca** AsyncStorage para credenciais.
+- Não persistir PII ou tokens em claro.
+
+## Rede
+- `fetch` com **`AbortController`** para cancelar pedidos.
+- **Timeouts** obrigatórios (ex. `Promise.race` com timer).
+- Retry com backoff em erros transitórios; circuit breaker em dependências críticas com falhas sustentadas.
+
+## Testes
+- **React Native Testing Library**; poucos ou nenhuns testes só por snapshot.
+- Mocks explícitos de módulos nativos em `jest.setup` (ou equivalente).
+- Hooks complexos: `@testing-library/react-hooks` / padrão do projeto.
+
+## Acessibilidade
+- `accessibilityLabel`, `accessibilityRole` e `accessible` em elementos interativos.
+- Texto dinâmico: `maxFontSizeMultiplier` quando fizer sentido.
+- Contraste de cor ≥ 4.5:1 para texto corpo.
+
+## Segurança (específico mobile)
+- Validar **cada** deep link antes de navegar.
+- **WebView**: `javaScriptEnabled` só com sandbox e URLs em allowlist; evitar conteúdo não confiável com JS livre.
+- Insets: `react-native-safe-area-context` — não hardcodar altura da status bar.
+- Não logar PII ou tokens; configurar filtragem em Sentry/Bugsnag (ou ferramenta do projeto).

@@ -1,0 +1,160 @@
+---
+description: PHP 7.1–7.4 legado — ativar só no picker. Não usar com php (8.3+) nem em projetos já em PHP 8.
+alwaysApply: false
+---
+
+# PHP 7.1–7.4 (legado)
+
+> ⚠️ **MUTUAL EXCLUSÃO:** Esta rule é **incompatível** com [php/rule.mdc](../php/rule.mdc) (PHP 8.3+).
+> Ative **apenas uma** delas por projeto. Use `php7` para legado PHP 7.x; use `php` para PHP 8.3+.
+
+Ativar em projetos PHP legados com versão 7.x (ex.: Zend Framework, APIs antigas). **Não** usar junto com [php/rule.mdc](mdc:../php/rule.mdc) — as duas têm exigências incompatíveis.
+
+> Segurança obrigatória: [php-security.mdc](mdc:../security/php-security.mdc) — seguir em toda geração de código PHP.
+> Erros e logs: [errors-and-logging/rule.mdc](mdc:../errors-and-logging/rule.mdc).
+> Arquitetura: [architecture/rule.mdc](mdc:../architecture/rule.mdc).
+
+## Runtime e ambiente
+
+- PHP 7.1–7.4; versão declarada em `composer.json` (`"require": {"php": "^7.x"}`).
+- **Proibido** usar recursos exclusivos do PHP 8.x: `enum`, `readonly`, constructor promotion, named arguments, tipos de união `int|string`, `match` expression, `never`, `fibers`.
+- Gerenciador de pacotes: **Composer**; `composer.json` + `composer.lock` como fonte de verdade.
+- `declare(strict_types=1)` **obrigatório** em código novo; em arquivos legados existentes, não alterar sem revisão de impacto.
+- Variáveis de ambiente: **vlucas/phpdotenv** ou leitura de `getenv()`; fail fast se variável obrigatória ausente.
+- PHP-FPM + nginx em produção; nunca `php -S` em produção.
+
+## Tipagem em PHP 7.x
+
+- Type hints em parâmetros e retornos disponíveis: tipos escalares (`int`, `string`, `float`, `bool`), classes, interfaces, `array`, `callable`, `iterable` (7.1+), `object` (7.2+).
+- Nullable types: `?string`, `?int` — disponíveis desde PHP 7.1.
+- Return type `void` — disponível desde PHP 7.1.
+- **Proibido** omitir type hints em código novo sem justificativa explícita.
+- **Obrigatório** PHPDoc `@param` e `@return` para arrays tipados e para "unions" que não existem como sintaxe em PHP 7.x:
+  ```php
+  /**
+   * @param int|string $id
+   * @return User|null
+   */
+  public function find($id): ?User
+  ```
+- **Proibido** `mixed` sem justificativa; estreitar com `instanceof` ou validação explícita.
+- **Não existe** `readonly` — usar `private` + getter ou construtor imutável.
+- **Não existe** `enum` — usar classes de constantes com validação:
+
+  ```php
+  final class Status
+  {
+      const ACTIVE   = 'active';
+      const INACTIVE = 'inactive';
+
+      private static array $valid = [self::ACTIVE, self::INACTIVE];
+
+      public static function assert(string $value): void
+      {
+          if (!\in_array($value, self::$valid, true)) {
+              throw new \InvalidArgumentException("Status inválido: {$value}");
+          }
+      }
+  }
+  ```
+
+## Orientação a objetos
+
+- **Proibido** `public` em propriedades de classe — usar `private`/`protected` + getters.
+- **Não existe** constructor promotion — declarar propriedades e atribuir no `__construct` explicitamente:
+
+  ```php
+  final class Money
+  {
+      /** @var int */
+      private $amount;
+      /** @var string */
+      private $currency;
+
+      public function __construct(int $amount, string $currency)
+      {
+          $this->amount   = $amount;
+          $this->currency = $currency;
+      }
+  }
+  ```
+
+- Interfaces para contratos; classes abstratas só quando há comportamento compartilhado real.
+- Traits: usar com parcimônia; apenas para comportamentos transversais; **proibido** como substituto de herança ou composição.
+- `final class` por padrão em classes concretas de domínio — facilitam testes e evitam herança indevida.
+
+## Namespaces e autoloading
+
+- **PSR-4** autoloading via Composer; namespaces refletem a estrutura de diretórios.
+- Um arquivo = uma classe/interface/trait.
+- Prefixo de namespace raiz declarado em `composer.json` (`autoload.psr-4`).
+
+## HTTP (sem framework)
+
+- Usar **PSR-7** (Request/Response imutáveis) + **PSR-15** (Middleware) + **PSR-11** (Container).
+- Nunca acessar `$_GET`, `$_POST`, `$_COOKIE` diretamente em código de aplicação — encapsular em objeto Request.
+- Respostas sempre via objeto Response; **proibido** `echo`/`print` direto em handlers.
+
+## Persistência
+
+- Queries **sempre** parametrizadas via PDO (`prepare` + `execute`) ou ORM com query builder.
+- **Proibido** concatenar ou interpolar input de usuário em SQL.
+- Transações explícitas para operações que envolvem múltiplas escritas.
+- Migrations versionadas com ferramenta dedicada (Phinx, Doctrine Migrations, etc.).
+
+## Erros de domínio
+
+```php
+// PHP 7.x — sem readonly nem constructor promotion
+final class DomainException extends \RuntimeException
+{
+    /** @var string */
+    private $code;
+    /** @var array|null */
+    private $details;
+
+    public function __construct(
+        string $code,
+        string $message,
+        ?array $details = null,
+        ?\Throwable $previous = null
+    ) {
+        parent::__construct($message, 0, $previous);
+        $this->code    = $code;
+        $this->details = $details;
+    }
+
+    public function getCode(): string { return $this->code; }
+    /** @return array|null */
+    public function getDetails(): ?array { return $this->details; }
+}
+```
+
+## Logging
+
+- **Monolog** (PSR-3); saída JSON estruturada em produção.
+- `correlation_id` injetado via middleware no contexto de cada request.
+- **Proibido** `var_dump`, `print_r` ou `error_log` em código de produção — usar logger PSR-3.
+
+## Testes
+
+- **PHPUnit** (Pest requer PHP 8.1+ — **proibido** em projetos 7.x); testes no diretório `tests/`.
+- Padrão AAA (Arrange / Act / Assert) em todos os testes.
+- Fixtures com **Faker** (versão compatível com PHP 7.x, ex.: `fzaninotto/faker` ou `fakerphp/faker` ≥ 1.9).
+- HTTP: usar cliente HTTP de teste do framework (não fazer requests reais em testes unitários).
+- Cobertura: `phpunit --coverage-text`; threshold definido em `phpunit.xml`.
+- Mocks: usar interfaces — **proibido** mockar classes concretas finais diretamente.
+
+## Qualidade
+
+- Linter: **PHP_CodeSniffer** (PSR-2 para código legado; PSR-12 para código novo).
+- Análise estática: **PHPStan** nível ≥ 5 (ajustar baseline para erros legados pré-existentes) ou **Psalm**.
+- Baseline do PHPStan para erros legados existentes — novos erros **não** entram sem correção.
+- Pre-commit: php-cs-fixer + phpstan + gitleaks obrigatórios.
+- **Proibido** `@phpstan-ignore` ou `@suppress` sem comentário explicando o motivo.
+
+## Migração incremental para PHP 8+
+
+- Ao criar funcionalidades novas em código legado PHP 7.x, isolar em classes desacopladas do framework para facilitar upgrade futuro.
+- Documentar em comentário `// PHP 8+: substituir por enum` / `// PHP 8+: usar readonly` quando o padrão legado for proposital e temporário.
+- **Proibido** aprofundar uso de padrões PHP 7.x em código totalmente novo sem aprovação explícita — avaliar upgrade de runtime primeiro.

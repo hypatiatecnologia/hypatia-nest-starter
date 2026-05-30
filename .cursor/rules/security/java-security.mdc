@@ -1,0 +1,31 @@
+---
+description: Padrões obrigatórios de segurança para Java / Kotlin JVM backend
+globs: ["**/*.java"]
+alwaysApply: false
+---
+
+# Segurança — Java / Kotlin (JVM backend)
+
+Aplicável a código Java e, quando ativado manualmente, Kotlin em contextos JVM backend (Spring Boot, etc.). **Não** ativar automaticamente para Android ou KMP sem backend JVM. **Precedência:** ver [principles/rule.mdc](mdc:../principles/rule.mdc).
+
+## Segredos
+- **Proibido** credenciais em código ou `application.yml` versionado; usar env / secret manager aprovado.
+- **Proibido** logar tokens, passwords ou PII identificável em claro.
+
+## Injeção e queries
+- **Proibido** construir JPQL/SQL nativo com concatenação de input; usar parâmetros bind/repositórios.
+- **Proibido** `SpEL`/`OGNL`/reflection com input não confiável sem sandbox explícito do projeto.
+
+## Mass assignment / serialização
+- **Obrigatório** segregar **DTO request** vs entidade persistente onde o domínio o exija; não expor setters ou campos internos apenas por conveniência Jackson sem `@JsonIgnore`/estruturas apropriadas.
+
+## Web / API
+- **Proibido** desativar CSRF sem justificativa em apps com sessões browser; APIs stateless usar token strategy do projeto.
+- **Preferir** listas de MIME e tamanho em uploads multipart; sanitizar filenames e impedir traversal.
+- Headers de segurança e CORS segundo gateway/tema do projeto — não abrir wildcard com credenciais.
+
+## SSRF integrações HTTP
+- **Proibido** URL crua de usuário em `RestClient`/`WebClient`/`RestTemplate`; allowlist quando o fluxo assim o permite.
+
+## Actuator / management
+- **Proibido** endpoints sensíveis de management actuar na internet sem autenticação e rede restrita.

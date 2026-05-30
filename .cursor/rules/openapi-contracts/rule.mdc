@@ -1,0 +1,39 @@
+---
+description: OpenAPI versionada — contrato e idempotência. Não usar sem spec pública no repo.
+globs:
+  - "**/openapi.yaml"
+  - "**/openapi.yml"
+  - "**/openapi.json"
+  - "**/swagger.yaml"
+  - "**/swagger.yml"
+  - "**/swagger.json"
+  - "**/*openapi*.yaml"
+  - "**/*openapi*.yml"
+  - "**/*openapi*.json"
+alwaysApply: false
+---
+
+# OpenAPI e contratos de API
+
+**Ativar este overlay quando:** o arquivo aberto for uma spec OpenAPI (`.yaml`/`.json` com `openapi:` key), um handler/router de API pública, ou um DTO de request/response de endpoint externo.
+
+> Erros estáveis ao cliente: [errors-and-logging/rule.mdc](mdc:../errors-and-logging/rule.mdc). Naming de rotas: [naming-and-files/rule.mdc](mdc:../naming-and-files/rule.mdc). TS backend: [typescript-node/rule.mdc](mdc:../typescript-node/rule.mdc). Testes de contrato: [tester/rule.mdc](mdc:../tester/rule.mdc).
+
+## Contrato vs código
+- **Obrigatório** que rotas/handlers públicos mantenham **paridade** com a spec (**OpenAPI 3.x**): paths, métodos, `requestBody`, `responses`, cabeçalhos relevantes (`Authorization`, versão).
+- **Proibido** alterar comportamento público (**breaking change**) sem: (1) incrementar versão na spec, (2) adicionar plano de deprecação com prazo.
+- **Obrigatório** usar uma **fonte geradora única** quando o tooling do repo assim o define (DTO → schema **ou** schema → stubs) — nunca manter spec e implementação editadas manualmente em paralelo.
+
+## Versionamento e evolução
+- **Obrigatório** versionamento por path (`/v1/...`) **ou** header — escolher um padrão e aplicar em todo o projeto; proibido misturar estilos.
+- **Obrigatório** documentar campos opcionais, defaults e enums na spec; qualquer mudança de semântica de campo existente conta como breaking.
+
+## Idempotência e mutações
+- **Obrigatório** suporte a **`Idempotency-Key`** em operações de escrita repetíveis (pagamentos, criação com retry) — implementar comportamento repetível no servidor e documentar na spec.
+
+## Segurança do contrato
+- **Proibido** declarar operações ou exemplos na spec que referenciem `eval`, execução dinâmica ou endpoints de administração sem autenticação explícita.
+
+## Qualidade contratual
+- **Obrigatório** ao menos um teste de schema por endpoint público quando o repo tiver suite de testes configurada — validar que a resposta real bate com o schema declarado.
+- Consumer-driven contracts (Pact): adotar apenas se há decisão de time documentada; não introduzir sem aprovação.

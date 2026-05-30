@@ -1,0 +1,74 @@
+---
+description: Python — FastAPI/Django, Pydantic, pytest. Não usar em stacks TS/PHP do repo.
+globs: ["**/*.py"]
+alwaysApply: false
+---
+
+# Python backend
+
+Ativar quando o contexto for serviços Python (API REST, workers, scripts, CLI).
+
+> Segurança obrigatória: [python-security.mdc](mdc:../security/python-security.mdc) — seguir em toda geração de código Python.
+> Erros e logs: [errors-and-logging/rule.mdc](mdc:../errors-and-logging/rule.mdc).
+> Arquitetura: [architecture/rule.mdc](mdc:../architecture/rule.mdc).
+
+## Runtime e ambiente
+- Python ≥ 3.11; versão declarada em `.python-version` (mise/pyenv) ou `pyproject.toml` `[tool.python]`.
+- Gerenciador de pacotes: **uv** (preferido em projetos novos) ou **pip + venv**; `pyproject.toml` como fonte de verdade de dependências.
+- Variáveis de ambiente: carregar com **pydantic-settings** (`BaseSettings`); fail fast na inicialização se campo obrigatório ausente.
+
+## Tipagem
+- **Obrigatório** anotações de tipo em todas as funções públicas (parâmetros e retorno).
+- Usar `from __future__ import annotations` em módulos com referências circulares.
+- Sem `Any` quando o tipo real é conhecido; estreitar com `isinstance` ou `TypeGuard`.
+- `TypedDict` ou `dataclass` para estruturas de dados internas; **Pydantic v2** para modelos de fronteira (request/response/config).
+
+## HTTP — FastAPI (preferido para novos serviços)
+- Rotas em routers (`APIRouter`); `main.py` só monta e inicializa.
+- **Pydantic v2** para `RequestModel` e `ResponseModel`; nunca expor modelo ORM diretamente como resposta.
+- `response_model=` explícito em todo endpoint — garante serialização segura.
+- Dependências de negócio via `Depends()`; não instanciar serviços dentro do handler.
+- Middleware de correlação: injetar `X-Request-ID` em log de cada request.
+
+## HTTP — Django REST Framework
+- Serializers como fronteira; não usar modelos Django diretamente em views.
+- `permission_classes` obrigatório em toda view; negar por padrão.
+- Paginação obrigatória em listagens sem limite fixo.
+
+## Persistência
+- **SQLAlchemy 2.x** (async preferido com `asyncpg`) ou **Django ORM**; migrações com Alembic ou `manage.py migrate`.
+- Queries parametrizadas — proibido f-strings em SQL (ver [python-security.mdc](mdc:../security/python-security.mdc)).
+- Sessão/transação gerenciada por context manager; nunca session global mutável.
+
+## Async
+- `async def` para handlers e I/O; nunca misturar bloqueante (`requests`, `time.sleep`) em contexto async — usar `httpx` e `asyncio.sleep`.
+- `asyncio.gather` com critério explícito (`return_exceptions=True` quando falhas parciais são aceitáveis).
+- Timeouts obrigatórios em chamadas HTTP de saída (`httpx` com `timeout=`).
+
+## Erros de domínio
+```python
+class DomainError(Exception):
+    def __init__(self, code: str, message: str, details: dict | None = None):
+        super().__init__(message)
+        self.code = code        # ex: "invoice_not_found"
+        self.details = details  # nunca PII
+
+# FastAPI: exception handler global mapeia DomainError → JSONResponse com code + status
+```
+
+## Logging
+- **structlog** (preferido) ou `logging` com `python-json-logger`; JSON estruturado.
+- `correlation_id` injetado via middleware no contexto de cada request.
+- Proibido `print()` para fluxo crítico em produção; usar `logger.info/error`.
+
+## Testes
+- **pytest** com `conftest.py` para fixtures; `parametrize` para variantes.
+- FastAPI: `httpx.AsyncClient` com `app` como transport (sem servidor real).
+- Django: `django.test.Client` ou `rest_framework.test.APIClient`.
+- Banco: **Testcontainers** (ou SQLite in-memory para testes sem dependência de schema específico de engine).
+- Cobertura: `pytest-cov`; threshold mínimo definido no `pyproject.toml`.
+
+## Qualidade
+- Linter: **ruff** (substitui flake8/isort/pyupgrade); formatter: **ruff format** ou **black**.
+- Type checker: **mypy** ou **pyright** em CI com `strict = true`.
+- Pre-commit: ruff + mypy + gitleaks obrigatórios.

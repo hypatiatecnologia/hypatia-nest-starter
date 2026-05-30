@@ -23,8 +23,38 @@ Source files include onboarding comments — start with:
 | `src/main.ts` | Bootstrap, security, Swagger |
 | `src/app.module.ts` | Module layout and infra wiring |
 | `src/config/configuration.ts` | Env vars and `RABBITMQ_MODE` |
+| `src/common/correlation/` | `x-correlation-id` middleware + AsyncLocalStorage |
 | `src/rabbitmq/rabbitmq.service.ts` | Event envelope, publish/consume, DLQ |
 | `src/modules/example/` | Api vs worker patterns (delete when done) |
+
+## Cursor (IDE padrão Hypatia)
+
+Abra o repo no **Cursor** — a config já vem em `.cursor/`:
+
+| Recurso | Uso |
+| --- | --- |
+| `.cursor/rules/` | Rules de arquitetura, NestJS, segurança, Pantheon (`hypatia-ecosystem`) |
+| `.cursor/commands/` | `/onboard`, `/commit`, `/pr`, `/review-nest-patterns`, `/explain`, … |
+| `.cursor/hooks/` | Bloqueio de `rm -rf` perigoso e redaction de secrets no prompt |
+| `.cursorignore` | Exclui `.env` e credenciais do contexto do agente |
+
+Guia completo: [.cursor/README.md](.cursor/README.md) · Guardrails do Agent: [.cursor/AGENTS.md](.cursor/AGENTS.md)
+
+Novos serviços criados com `create-service` **herdam** esta pasta automaticamente.
+
+## Correlation ID
+
+Every HTTP request gets a trace id via header **`x-correlation-id`**:
+
+- Send your own id to correlate with upstream (Cerberus, client apps).
+- When omitted, the service generates a UUID and echoes it on the response.
+- Propagates to Pino logs (`correlationId`), error JSON, and RabbitMQ events.
+
+```bash
+curl -H 'x-correlation-id: checkout-abc' http://localhost:3000/health -v
+```
+
+Implementation: `src/common/correlation/` · wired in `main.ts` and `app.module.ts`.
 
 ## Quick start
 
@@ -49,7 +79,7 @@ npm run create-service -- athena-core api
 npm run create-service -- hermes-worker worker
 ```
 
-This copies the starter to `../<service-name>`, applies the archetype env, and initializes git.
+This copies the starter to `../<service-name>`, applies the archetype env, includes `.cursor/`, and initializes git.
 
 ## RabbitMQ conventions
 

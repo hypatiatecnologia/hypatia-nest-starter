@@ -1,0 +1,91 @@
+---
+description: Padrões NestJS deste repo (módulos, DTOs, Prisma, Redis, RabbitMQ). Preferir sobre company-patterns.
+globs:
+  - nest-cli.json
+  - src/**/*.ts
+  - prisma/schema.prisma
+  - "!src/**/*.test.ts"
+  - "!src/**/*.spec.ts"
+alwaysApply: false
+---
+
+# Padrões NestJS — hypatia-nest-starter
+
+> Precedência: [hypatia-ecosystem](mdc:../hypatia-ecosystem/rule.mdc), [typescript-node](mdc:../typescript-node/rule.mdc), [architecture](mdc:../architecture/rule.mdc), [errors-and-logging](mdc:../errors-and-logging/rule.mdc), [typescript-security](mdc:../security/typescript-security.mdc), [cognitive-complexity](mdc:../cognitive-complexity/rule.mdc).
+
+Esta rule descreve o **padrão real deste repositório**. Não usar [company-patterns](mdc:../company-patterns/rule.mdc) (stack Idea/Express/Yup).
+
+## Estrutura de módulo
+
+```
+src/modules/<feature>/
+├── <feature>.module.ts
+├── <feature>.controller.ts      # api archetype only
+├── <feature>.service.ts
+├── <feature>-event.consumer.ts  # worker archetype — registerHandler in onModuleInit
+└── dto/
+    └── *.dto.ts
+```
+
+Infra compartilhada: `src/prisma/`, `src/redis/`, `src/rabbitmq/`, `src/config/`, `src/common/correlation/`.
+
+## Correlation ID
+
+- Header: `x-correlation-id` — `correlationMiddleware` em `main.ts` (antes do pino).
+- Contexto: `CorrelationContext` (AsyncLocalStorage) — use `CorrelationContext.get()` em services.
+- Logs Pino: `genReqId` + `customProps.correlationId` em `AppModule`.
+- Erros HTTP: `AllExceptionsFilter` inclui `correlationId` na resposta.
+- RabbitMQ: `publish()` usa `CorrelationContext` quando `correlationId` omitido; consumer restaura ALS por mensagem.
+
+## Archetypes (`RABBITMQ_MODE`)
+
+- **publisher (api):** REST + `RabbitMqService.publish()` após transação bem-sucedida.
+- **consumer (worker):** sem controllers de negócio; handlers em `onModuleInit` via `registerHandler`.
+- **off:** sem conexão AMQP; `publish()` é no-op.
+
+## Controller
+
+- `@Controller`, `@ApiTags`, `@ApiBearerAuth` quando autenticado (integração Argus futura).
+- DTOs com `class-validator` + `@ApiProperty` para Swagger.
+- **Proibido** lógica de negócio pesada no controller — delegar ao service.
+- Propagar `x-correlation-id` para eventos publicados.
+
+## Service
+
+- `@Injectable()` com dependências via construtor (`PrismaService`, `RedisService`, `RabbitMqService`).
+- Exceções Nest para erros de negócio esperados (`NotFoundException`, `ForbiddenException`).
+- **Proibido** `catch` silencioso; propagar ou mapear na borda com código estável.
+- **Proibido** persistir PII bruto — delegar ao Hades (data-vault).
+
+## RabbitMQ
+
+- Routing key = `event.type` (ex.: `order.created`).
+- Publicar **depois** de commit de transação Prisma quando houver side effect externo.
+- Handlers de consumer: curtos, idempotentes; sem HTTP no caminho crítico.
+
+## DTOs e validação
+
+- Um arquivo por DTO em `dto/`, kebab-case (`create-order.dto.ts`).
+- Decorators `class-validator`; validação global via `ValidationPipe` em `main.ts`.
+- **Não** usar Yup neste repo.
+
+## Prisma
+
+- Schema em `prisma/schema.prisma`; migrações versionadas em `prisma/migrations/`.
+- Acesso via `PrismaService`; evitar SQL raw salvo necessidade comprovada.
+- Transações com `prisma.$transaction` quando múltiplas escritas devem ser atômicas.
+
+## Módulo Nest
+
+- Registrar controllers e providers no `@Module` da feature.
+- Importar módulos de infra (`PrismaModule`, `RedisModule`, `RabbitMqModule`) — não instanciar clientes manualmente.
+
+## Nomenclatura
+
+- Arquivos kebab-case; classes PascalCase; DTOs com sufixo `Dto`.
+- Rotas REST em kebab-case via `@Controller('recurso')`.
+- Código, variáveis e nomes de repo: **English** (spec Hypatia).
+
+## Testes
+
+- `*.spec.ts` junto ao módulo; mocks de `PrismaService`, `RedisService`, `RabbitMqService`.
