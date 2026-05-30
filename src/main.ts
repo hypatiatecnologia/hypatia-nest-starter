@@ -6,6 +6,7 @@ import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { correlationMiddleware } from './common/correlation/correlation.middleware';
+import { formatStartupLogMessage, printStartupBanner } from './common/startup/startup-banner';
 import { AppConfig } from './config/configuration';
 
 /**
@@ -53,7 +54,18 @@ async function bootstrap() {
   SwaggerModule.setup('docs/api', app, document);
 
   const port = config.get('port', { infer: true });
+  const nodeEnv = config.get('nodeEnv', { infer: true });
+  const rabbitmqMode = config.get('rabbitmqMode', { infer: true });
+  const logger = app.get(Logger);
   await app.listen(port, '0.0.0.0');
+
+  const baseUrl = `http://localhost:${port}`;
+  const startupInfo = { serviceName, baseUrl, rabbitmqMode, nodeEnv };
+
+  printStartupBanner(startupInfo);
+  if (nodeEnv === 'production') {
+    logger.log(formatStartupLogMessage(startupInfo));
+  }
 }
 
 bootstrap();
