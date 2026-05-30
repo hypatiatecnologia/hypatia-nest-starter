@@ -1,0 +1,54 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { LoggerModule } from 'nestjs-pino';
+import configuration from './config/configuration';
+import { PrismaModule } from './prisma/prisma.module';
+import { RedisModule } from './redis/redis.module';
+import { RabbitMqModule } from './rabbitmq/rabbitmq.module';
+import { ExampleModule } from './modules/example/example.module';
+import { HealthController } from './health.controller';
+
+/**
+ * Root module — wires shared infrastructure and feature modules.
+ *
+ * Layout convention (add your domain under `src/modules/<feature>/`):
+ *   src/
+ *   ├── config/          Typed env (see configuration.ts)
+ *   ├── prisma/          PostgreSQL via Prisma
+ *   ├── redis/           Cache, locks, event dedupe
+ *   ├── rabbitmq/        Async messaging (optional per RABBITMQ_MODE)
+ *   └── modules/         Feature modules (controller + service + dto/)
+ *
+ * Replace ExampleModule with your feature modules after scaffolding.
+ * Remove ExampleModule entirely once you no longer need the sample flow.
+ */
+@Module({
+  imports: [
+    // Loads typed env vars globally — inject ConfigService<AppConfig> anywhere.
+    ConfigModule.forRoot({ isGlobal: true, load: [configuration] }),
+    LoggerModule.forRoot({
+      pinoHttp: {
+        transport:
+          process.env.NODE_ENV !== 'production'
+            ? { target: 'pino-pretty', options: { singleLine: true } }
+            : undefined,
+        // Never log bearer tokens or other credentials.
+        redact: ['req.headers.authorization'],
+      },
+    }),
+    // Global rate limit: 100 requests per 60s per IP (tune for your service).
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    PrismaModule,
+    RedisModule,
+    RabbitMqModule,
+    ExampleModule, // DELETE: sample module — see modules/example/ for api vs worker patterns
+  ],
+  controllers: [HealthController],
+  providers: [
+    // Applies ThrottlerGuard to every route automatically.
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
+})
+export class AppModule {}

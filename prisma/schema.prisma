@@ -1,0 +1,22 @@
+// Prisma schema — single source of truth for PostgreSQL models and migrations.
+//
+// Workflow:
+//   1. Edit models below
+//   2. npx prisma migrate dev --name describe_change
+//   3. Commit prisma/migrations/ to version control
+//
+// Replace ServiceHealthCheck with your domain entities after scaffolding.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ServiceHealthCheck {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+}

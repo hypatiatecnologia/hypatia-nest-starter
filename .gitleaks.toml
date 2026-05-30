@@ -1,0 +1,15 @@
+title = "hypatia-nest-starter"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Examples and documentation without production secrets"
+paths = [
+  '''(?i)\.env\.example$''',
+  '''(?i)(?:^|/)archetypes(?:/|$)''',
+  '''(?i)^README\.md$''',
+]
+regexes = [
+  '''(?i)change-me''',
+]
