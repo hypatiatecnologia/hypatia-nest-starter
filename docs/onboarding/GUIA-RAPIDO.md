@@ -1,6 +1,6 @@
 # Guia rápido — Hypatia Nest Starter
 
-Referência diária para quem já configurou o ambiente. Setup inicial: [README](../../README.md).
+Referência diária para quem já configurou o ambiente. Primeira vez: [PRIMEIROS-PASSOS.md](./PRIMEIROS-PASSOS.md) · Setup: [README](../../README.md) · Erros: [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 
 ## Comandos essenciais
 
@@ -48,7 +48,7 @@ npm run create-service -- hermes-worker worker
 | Worker | `RABBITMQ_MODE=consumer` | só `/health` | consome fila |
 | Off | `RABBITMQ_MODE=off` | REST | desligado |
 
-Copie preset: `cp archetypes/api.env.example .env`
+API no host: `cp archetypes/api.env.example .env` · Docker full: `cp .env.example .env` (ver [PRIMEIROS-PASSOS.md](./PRIMEIROS-PASSOS.md))
 
 ## Criar um novo módulo de feature
 

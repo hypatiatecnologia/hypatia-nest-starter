@@ -16,10 +16,14 @@ See `archetypes/api.env.example` and `archetypes/worker.env.example`.
 
 ## Onboarding (novos devs)
 
+**First time?** Start with [docs/onboarding/PRIMEIROS-PASSOS.md](docs/onboarding/PRIMEIROS-PASSOS.md) (~10 min: tests without Docker, live API, `create-service` smoke check).
+
 Structured learning path in Portuguese:
 
 | Doc | Content |
 | --- | --- |
+| [docs/onboarding/PRIMEIROS-PASSOS.md](docs/onboarding/PRIMEIROS-PASSOS.md) | Minimal setup — starter + scaffold |
+| [docs/onboarding/TROUBLESHOOTING.md](docs/onboarding/TROUBLESHOOTING.md) | Common setup errors |
 | [docs/onboarding/ONBOARDING.md](docs/onboarding/ONBOARDING.md) | 4-week roadmap + hands-on exercises |
 | [docs/onboarding/GUIA-RAPIDO.md](docs/onboarding/GUIA-RAPIDO.md) | Daily reference — commands, new module |
 | [docs/onboarding/GLOSSARIO.md](docs/onboarding/GLOSSARIO.md) | Pantheon and NestJS glossary |
@@ -69,20 +73,66 @@ curl -H 'x-correlation-id: checkout-abc' http://localhost:3000/health -v
 
 Implementation: `src/common/correlation/` · wired in `main.ts` and `app.module.ts`.
 
+## Prerequisites
+
+| Tool | Version / notes |
+| --- | --- |
+| Node.js | 20 LTS — `nvm use` (see [.nvmrc](.nvmrc)) |
+| Docker | Docker Compose v2 — Postgres, Redis, RabbitMQ for local dev |
+| Ports free | 3000 (API), 5432, 6379, 5672, 15672 |
+
+Quick validation without Docker: `npm ci && npm test` (see [PRIMEIROS-PASSOS.md](docs/onboarding/PRIMEIROS-PASSOS.md)).
+
 ## Quick start
 
+Pick **one** path. Which `.env` to use:
+
+| You run the API… | Copy this to `.env` |
+| --- | --- |
+| On your machine (`npm run start:dev`) | `archetypes/api.env.example` (`localhost` hostnames) |
+| Inside Docker (`docker compose up --build`) | `.env.example` (`postgres` / `redis` / `rabbitmq` service names) |
+
+Or run the hybrid setup script: `npm run setup:local` then `npm run start:dev`.
+
+### Hybrid dev (recommended)
+
+Infra in Docker, Nest on the host — matches day-to-day Pantheon development.
+
 ```bash
-cp .env.example .env
-docker compose up -d postgres redis rabbitmq
-npm install
+nvm use
+cp archetypes/api.env.example .env
+docker compose up -d --wait postgres redis rabbitmq
+npm ci
+npx prisma generate
 npx prisma migrate deploy
 npm run start:dev
+```
+
+Verify:
+
+```bash
+curl -s http://localhost:3000/health | head -c 200
 ```
 
 - API: http://localhost:3000
 - Swagger: http://localhost:3000/docs/api
 - Health: http://localhost:3000/health
 - RabbitMQ UI: http://localhost:15672 (guest/guest)
+
+Stuck? See [docs/onboarding/TROUBLESHOOTING.md](docs/onboarding/TROUBLESHOOTING.md).
+
+### Full stack in Docker
+
+No `npm run start:dev` on the host — the `api` service runs in a container.
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Same URLs as above once containers are healthy.
+
+Optional: set `RABBITMQ_MODE=off` in `.env` if you only need Postgres + Redis for a first smoke test (RabbitMQ health shows `disabled`).
 
 ## Create a new service
 
@@ -92,7 +142,7 @@ npm run create-service -- athena-core api
 npm run create-service -- hermes-worker worker
 ```
 
-This copies the starter to `../<service-name>`, applies the archetype env, includes `.cursor/`, and initializes git.
+This copies the starter to `../<service-name>`, applies the archetype env (localhost hostnames in `.env`), includes `.cursor/`, and initializes git. Then follow [PRIMEIROS-PASSOS.md — Trilha C](docs/onboarding/PRIMEIROS-PASSOS.md#trilha-c--validar-um-serviço-criado-com-create-service) in the new directory.
 
 ## RabbitMQ conventions
 
@@ -158,6 +208,7 @@ src/
 
 | Script | Description |
 | --- | --- |
+| `npm run setup:local` | Hybrid setup: api `.env`, infra up, `npm ci`, Prisma generate + migrate |
 | `npm run start:dev` | Dev server with watch |
 | `npm run create-service` | Scaffold new repo from starter |
 | `npm run prisma:migrate` | Create migration (dev) |
@@ -165,14 +216,6 @@ src/
 | `npm test` | Unit + e2e tests |
 | `npm run test:ci` | Related tests only (lint-staged / CI) |
 | `npm run test:cov` | Tests with coverage report |
-
-## Docker (full stack)
-
-```bash
-docker compose up --build
-```
-
-Runs postgres, redis, rabbitmq, migrate, and the API container.
 
 ## Related repos
 

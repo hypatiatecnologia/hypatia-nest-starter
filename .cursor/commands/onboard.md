@@ -24,12 +24,15 @@ Use este comando quando:
 Se o repo foi criado via `npm run create-service` ou é o starter:
 
 1. Abrir o projeto no **Cursor** (`.cursor/` já incluído).
-2. Ler comentários em `src/main.ts`, `src/app.module.ts`, `src/rabbitmq/rabbitmq.service.ts`.
-3. Copiar env: `cp .env.example .env` ou `cp archetypes/api.env.example .env`.
-4. Infra: `docker compose up -d postgres redis rabbitmq`.
-5. `npm install && npx prisma migrate deploy && npm run start:dev`.
-6. Commands úteis: `/explain`, `/review-nest-patterns`, `/commit`, `/pr`.
-7. Rule Pantheon: [hypatia-ecosystem](../rules/hypatia-ecosystem/rule.mdc).
+2. Seguir [docs/onboarding/PRIMEIROS-PASSOS.md](../../docs/onboarding/PRIMEIROS-PASSOS.md) (Trilha A → B no starter; Trilha C após scaffold).
+3. Ler comentários em `src/main.ts`, `src/app.module.ts`, `src/rabbitmq/rabbitmq.service.ts`.
+4. **API no host (`npm run start:dev`):** `cp archetypes/api.env.example .env` — **não** use `.env.example` da raiz (hostnames Docker).
+5. **Stack só Docker:** `cp .env.example .env` + `docker compose up --build` (sem `start:dev` no host).
+6. Infra híbrida: `docker compose up -d --wait postgres redis rabbitmq`.
+7. `nvm use && npm ci && npx prisma generate && npx prisma migrate deploy && npm run start:dev` — ou `npm run setup:local` + `npm run start:dev`.
+8. Commands úteis: `/explain`, `/review-nest-patterns`, `/commit`, `/pr`.
+9. Erros comuns: [docs/onboarding/TROUBLESHOOTING.md](../../docs/onboarding/TROUBLESHOOTING.md).
+10. Rule Pantheon: [hypatia-ecosystem](../rules/hypatia-ecosystem/rule.mdc).
 
 ---
 

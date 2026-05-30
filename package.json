@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Hypatia NestJS microservice starter (PostgreSQL + Redis + RabbitMQ)",
   "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0 <21"
+  },
   "scripts": {
     "build": "nest build",
     "start": "nest start",
@@ -16,7 +19,9 @@
     "type-check": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.ts\"",
+    "postinstall": "prisma generate",
     "prepare": "husky",
+    "setup:local": "bash scripts/setup-local.sh",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",

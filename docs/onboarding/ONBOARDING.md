@@ -2,10 +2,22 @@
 
 Documentação para novos desenvolvedores no ecossistema Pantheon. Leia em conjunto com o [README](../../README.md) e o command Cursor `/onboard`.
 
+## Comece aqui (dia 1)
+
+Siga [PRIMEIROS-PASSOS.md](./PRIMEIROS-PASSOS.md) antes do roteiro de 4 semanas:
+
+1. **Trilha A** — `npm ci` + `npm test` (sem Docker).
+2. **Trilha B** — API no ar com `archetypes/api.env.example` + infra Docker.
+3. **Trilha C** — validar `create-service` no novo diretório.
+
+Problemas: [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
+
 ## Documentação disponível
 
 | Documento | Conteúdo |
 | --- | --- |
+| [PRIMEIROS-PASSOS.md](./PRIMEIROS-PASSOS.md) | Setup mínimo — starter + scaffold |
+| [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) | Erros comuns de instalação |
 | [GUIA-RAPIDO.md](./GUIA-RAPIDO.md) | Referência diária — comandos, criar módulo, archetypes |
 | [GLOSSARIO.md](./GLOSSARIO.md) | Termos Pantheon e NestJS usados no starter |
 | [MAPA-MENTAL.md](./MAPA-MENTAL.md) | Fluxo visual HTTP → domínio → infra |
@@ -15,12 +27,11 @@ Documentação para novos desenvolvedores no ecossistema Pantheon. Leia em conju
 
 ### Semana 1 — Primeiros passos
 
-1. Leia o [README](../../README.md) e configure o ambiente (`nvm use`, `npm install`).
-2. Copie env: `cp .env.example .env` ou `cp archetypes/api.env.example .env`.
-3. Suba infra: `docker compose up -d postgres redis rabbitmq`.
-4. Rode migrações e servidor: `npx prisma migrate deploy && npm run start:dev`.
-5. Explore Swagger: http://localhost:3000/docs/api
-6. Leia comentários em `src/main.ts`, `src/app.module.ts`, `src/rabbitmq/rabbitmq.service.ts`.
+1. Conclua [PRIMEIROS-PASSOS.md](./PRIMEIROS-PASSOS.md) (Trilhas A, B e C se for criar serviço).
+2. Leia o [README](../../README.md) — Quick start híbrido vs Docker full.
+3. Leia comentários em `src/main.ts`, `src/app.module.ts`, `src/rabbitmq/rabbitmq.service.ts`.
+4. Explore Swagger: http://localhost:3000/docs/api
+5. Aprofunde termos em [GLOSSARIO.md](./GLOSSARIO.md) conforme surgirem dúvidas.
 
 ### Semana 2 — Explorando o código
 
