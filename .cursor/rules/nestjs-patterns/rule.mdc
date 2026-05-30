@@ -55,7 +55,7 @@ Infra compartilhada: `src/prisma/`, `src/redis/`, `src/rabbitmq/`, `src/config/`
 - `@Injectable()` com dependências via construtor (`PrismaService`, `RedisService`, `RabbitMqService`).
 - Exceções Nest para erros de negócio esperados (`NotFoundException`, `ForbiddenException`).
 - **Proibido** `catch` silencioso; propagar ou mapear na borda com código estável.
-- **Proibido** persistir PII bruto — delegar ao Hades (data-vault).
+- **Proibido** persistir PII bruto — delegar ao Hades (`hades-vault`).
 
 ## RabbitMQ
 

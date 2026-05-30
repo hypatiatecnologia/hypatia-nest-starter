@@ -1,5 +1,5 @@
 # Exemplo 10 — nestjs-patterns/rule.mdc
-# Módulo NestJS alinhado ao data-vault (controller magro, DTO, service, Prisma)
+# Módulo NestJS alinhado ao hades-vault (controller magro, DTO, service, Prisma)
 
 **Rules ativas:** `nestjs-patterns/rule.mdc`, `typescript-security.mdc`, `architecture/rule.mdc`
 

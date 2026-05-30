@@ -14,7 +14,7 @@ alwaysApply: true
 | --- | --- | --- |
 | Cerberus | `cerberus-gateway` | Gateway (fora deste starter Nest) |
 | Argus | `argus-auth` | `api` |
-| Hades | `hades-vault` / `data-vault` | Produto LGPD — **não** fork do starter |
+| Hades | `hades-vault` | Produto LGPD — **não** fork do starter |
 | Athena | `athena-core` | `api` + Redis locks |
 | Midas | `midas-payment` | `api` + idempotency keys |
 | Hermes | `hermes-worker` | `worker` |
@@ -42,4 +42,4 @@ Comunicação: **REST** (síncrono) + **RabbitMQ** (assíncrono, exchange `hypat
 
 Scaffold de novo serviço: `npm run create-service -- <name> [api|worker]` (copia código + `.cursor/`).
 
-Sincronização: melhorias genéricas em `.cursor/` propagam **hypatia-nest-starter → data-vault**; rules LGPD (`nestjs-patterns` Hades) ficam só em `data-vault`.
+Sincronização: melhorias genéricas em `.cursor/` propagam **hypatia-nest-starter → hades-vault**; rules LGPD (`nestjs-patterns` Hades) ficam só em `hades-vault`.

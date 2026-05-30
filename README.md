@@ -2,7 +2,7 @@
 
 Boilerplate for Hypatia microservices: **NestJS 10**, **PostgreSQL** (Prisma), **Redis**, and **RabbitMQ** (optional publisher or consumer).
 
-Extracted from the [data-vault](https://github.com/hypatia/data-vault) (Hades) infrastructure patterns. Use this repo to bootstrap new Pantheon services — not as a fork of the LGPD vault.
+Extracted from [hades-vault](https://github.com/hypatia/data-vault) (Hades) infrastructure patterns. Use this repo to bootstrap new Pantheon services — not as a fork of the LGPD vault.
 
 ## Archetypes
 
@@ -221,7 +221,7 @@ src/
 
 | Pantheon service | Repo | Starter archetype |
 | --- | --- | --- |
-| Hades | `data-vault` / `hades-vault` | Product — not this template |
+| Hades | `hades-vault` | Product — not this template |
 | Athena | `athena-core` | `api` |
 | Midas | `midas-payment` | `api` |
 | Hermes | `hermes-worker` | `worker` |

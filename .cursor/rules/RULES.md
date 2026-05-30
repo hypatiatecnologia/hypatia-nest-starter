@@ -48,7 +48,7 @@ Roteador para escolher a rule certa. **Precedência detalhada:** [_shared/preced
 | Situação | Rule |
 |----------|------|
 | NestJS (Hypatia starter / Pantheon) | [hypatia-ecosystem](./hypatia-ecosystem/rule.mdc) + [nestjs-patterns](./nestjs-patterns/rule.mdc) + [typescript-node](./typescript-node/rule.mdc) |
-| NestJS (data-vault / Hades) | [nestjs-patterns](./nestjs-patterns/rule.mdc) + [typescript-node](./typescript-node/rule.mdc) |
+| NestJS (hades-vault / Hades) | [nestjs-patterns](./nestjs-patterns/rule.mdc) + [typescript-node](./typescript-node/rule.mdc) |
 | Node novo (Fastify/Nest genérico, Zod) | [typescript-node](./typescript-node/rule.mdc) |
 | Express + Yup legado | [company-patterns](./company-patterns/rule.mdc) + [node-express](./node-express/rule.mdc) — **não** `typescript-node` |
 | React web sem arquivo coberto por glob | [typescript-react](./typescript-react/rule.mdc) |

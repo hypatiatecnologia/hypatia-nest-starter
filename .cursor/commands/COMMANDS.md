@@ -21,7 +21,7 @@ Commits: [\_shared/commit-message.md](./_shared/commit-message.md) · Diff git: 
 | Testes (escrever + rodar)          | [`test`](./test.md)                                                                               |
 | Bug / stack trace                  | [`debug`](./debug.md)                                                                             |
 | Refactor preservando comportamento | [`refactor`](./refactor.md)                                                                       |
-| Padrões NestJS (data-vault)        | [`review-nest-patterns`](./review-nest-patterns.md)                                               |
+| Padrões NestJS (hades-vault)       | [`review-nest-patterns`](./review-nest-patterns.md)                                               |
 | Padrões Idea/Express (outros repos) | [`review-patterns`](./review-patterns.md) — preferir command específico do repo se existir        |
 | Auditoria segurança (read-only)    | [`security-review`](./security-review.md)                                                         |
 | Dependências e supply chain        | [`deps-audit`](./deps-audit.md)                                                                   |
