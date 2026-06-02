@@ -4,6 +4,7 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'crypto';
+import { config as loadDotenv } from 'dotenv';
 import loadConfiguration, { validateConfig } from './config/configuration';
 import { CORRELATION_ID_HEADER } from './common/correlation/correlation.constants';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -31,7 +32,9 @@ import { HealthController } from './health.controller';
 @Module({})
 export class AppModule {
   static async register(): Promise<DynamicModule> {
-    const featureModules = await discoverFeatureModules();
+    loadDotenv({ quiet: true });
+    const appConfig = loadConfiguration();
+    const featureModules = await discoverFeatureModules({ appConfig });
 
     return {
       module: AppModule,

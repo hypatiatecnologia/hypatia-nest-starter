@@ -60,7 +60,7 @@ curl -H 'x-correlation-id: onboarding-week2' http://localhost:3000/health -v
 2. Leia sobre graceful shutdown (seção abaixo) e health checks.
 3. Garanta `npm run lint:ci && npm test` antes de push (hooks Husky).
 4. Scaffold de serviço real: `npm run create-service -- meu-servico api`.
-5. Remova `ExampleModule` quando não precisar mais do tutorial.
+5. Remova `src/modules/example/` quando não precisar mais do tutorial; features novas são descobertas automaticamente.
 
 ## Exercícios práticos
 

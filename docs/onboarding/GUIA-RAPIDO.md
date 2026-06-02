@@ -119,17 +119,22 @@ export class OrdersEventConsumer implements OnModuleInit {
 
 ```typescript
 @Module({
-  imports: [RabbitMqModule],
-  controllers: process.env.RABBITMQ_MODE === 'consumer' ? [] : [OrdersController],
-  providers: [
-    OrdersService,
-    ...(process.env.RABBITMQ_MODE === 'consumer' ? [OrdersEventConsumer] : []),
-  ],
+  providers: [],
 })
-export class OrdersModule {}
+export class OrdersModule {
+  static register(config: AppConfig): DynamicModule {
+    const isConsumer = config.rabbitmqMode === 'consumer';
+
+    return {
+      module: OrdersModule,
+      controllers: isConsumer ? [] : [OrdersController],
+      providers: isConsumer ? [OrdersEventConsumer] : [OrdersService],
+    };
+  }
+}
 ```
 
-Registre em `AppModule` e remova `ExampleModule` quando pronto.
+Crie o arquivo em `src/modules/orders/orders.module.ts`; ele será descoberto automaticamente. Remova `src/modules/example/` quando pronto.
 
 ## Publicar evento de teste
 

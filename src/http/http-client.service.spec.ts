@@ -67,6 +67,16 @@ describe('HttpClientService', () => {
     expect(global.fetch).toHaveBeenCalledTimes(2); // no retries on 400
   });
 
+  it('omits query parameters from HttpClientError messages', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 400 });
+
+    const service = new HttpClientService();
+
+    await expect(service.get('https://api.example.com/fail?token=secret-value')).rejects.toThrow(
+      'HTTP 400 for GET https://api.example.com/fail',
+    );
+  });
+
   describe('retry behavior', () => {
     beforeEach(() => jest.useFakeTimers());
 

@@ -1,32 +1,86 @@
-import { Type } from '@nestjs/common';
+import { DynamicModule, Type } from '@nestjs/common';
+import { MODULE_METADATA } from '@nestjs/common/constants';
 import { glob } from 'glob';
 import { createRequire } from 'module';
-import { join } from 'path';
+import { basename, join } from 'path';
+import { AppConfig } from '../../config/configuration';
 
 const requireModule = createRequire(__filename);
+
+type FeatureModule = DynamicModule | Type;
+type ModuleExport = Type & {
+  register?: (config: AppConfig) => FeatureModule | Promise<FeatureModule>;
+};
+
+interface DiscoverFeatureModulesOptions {
+  appConfig?: AppConfig;
+  rootDir?: string;
+  requireFromPath?: (filePath: string) => Record<string, unknown>;
+}
 
 /**
  * Discovers feature modules under `src/modules/<feature>/<feature>.module.ts`.
  * Works in dev (ts) and prod (js) — cwd resolves to `src/` or `dist/` via __dirname.
  */
-export async function discoverFeatureModules(): Promise<Type[]> {
+export async function discoverFeatureModules(
+  options: DiscoverFeatureModulesOptions = {},
+): Promise<FeatureModule[]> {
+  const rootDir = options.rootDir ?? join(__dirname, '../..');
+  const loadModule = options.requireFromPath ?? ((filePath: string) => requireModule(filePath));
   const files = [
     ...new Set(
       await glob('modules/*/*.module.{ts,js}', {
-        cwd: join(__dirname, '../..'),
+        cwd: rootDir,
         absolute: true,
       }),
     ),
-  ];
+  ].sort();
 
-  return files.map((filePath) => {
-    const mod = requireModule(filePath) as Record<string, unknown>;
-    const moduleClass = mod.default ?? Object.values(mod)[0];
+  return Promise.all(
+    files.map(async (filePath) => {
+      const mod = loadModule(filePath);
+      const moduleClass = resolveModuleExport(filePath, mod);
 
-    if (typeof moduleClass !== 'function') {
-      throw new Error(`Module file "${filePath}" does not export a valid NestJS module class.`);
-    }
+      if (options.appConfig && typeof moduleClass.register === 'function') {
+        return moduleClass.register(options.appConfig);
+      }
 
-    return moduleClass as Type;
-  });
+      return moduleClass;
+    }),
+  );
+}
+
+function resolveModuleExport(filePath: string, mod: Record<string, unknown>): ModuleExport {
+  const exportName = getExpectedExportName(filePath);
+  const moduleClass = mod[exportName] ?? mod.default;
+
+  if (typeof moduleClass !== 'function' || !isNestModule(moduleClass)) {
+    throw new Error(`Module file "${filePath}" must export a NestJS module named ${exportName}.`);
+  }
+
+  return moduleClass as ModuleExport;
+}
+
+function getExpectedExportName(filePath: string): string {
+  const featureName = basename(filePath).replace(/\.module\.(ts|js)$/, '');
+  const pascalName = featureName
+    .split(/[^a-zA-Z0-9]/)
+    .filter(Boolean)
+    .map((part) => `${part[0].toUpperCase()}${part.slice(1)}`)
+    .join('');
+
+  return `${pascalName}Module`;
+}
+
+function isNestModule(moduleClass: unknown): boolean {
+  if (typeof moduleClass !== 'function') {
+    return false;
+  }
+
+  return [
+    MODULE_METADATA.IMPORTS,
+    MODULE_METADATA.PROVIDERS,
+    MODULE_METADATA.CONTROLLERS,
+    MODULE_METADATA.EXPORTS,
+  ].some((metadataKey) => Reflect.hasMetadata(metadataKey, moduleClass));
 }

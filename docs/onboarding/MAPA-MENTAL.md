@@ -107,7 +107,7 @@ sequenceDiagram
 | Fluxo | Arquivo principal |
 | --- | --- |
 | Bootstrap | `src/main.ts` |
-| Wiring módulos | `src/app.module.ts` |
+| Auto-discovery de módulos | `src/common/module-discovery/module-discovery.ts` |
 | Correlation | `src/common/correlation/` |
 | Publish | `src/rabbitmq/rabbitmq.service.ts` |
 | Consume | `src/modules/example/example-event.consumer.ts` |

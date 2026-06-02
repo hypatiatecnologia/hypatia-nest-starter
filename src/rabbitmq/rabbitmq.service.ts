@@ -6,10 +6,21 @@ import amqpConnectionManager, {
 } from 'amqp-connection-manager';
 import { ConfirmChannel, ConsumeMessage } from 'amqplib';
 import { randomUUID } from 'crypto';
+import { z } from 'zod';
 import { AppConfig } from '../config/configuration';
 import { CorrelationContext } from '../common/correlation/correlation.context';
 import { RedisService } from '../redis/redis.service';
 import { HypatiaEvent, EventHandler } from './rabbitmq.types';
+
+const hypatiaEventSchema = z
+  .object({
+    eventId: z.string().min(1),
+    type: z.string().min(1),
+    occurredAt: z.string().min(1),
+    correlationId: z.string().min(1).optional(),
+    payload: z.unknown(),
+  })
+  .passthrough();
 
 /**
  * RabbitMQ client for the Hypatia ecosystem.
@@ -181,7 +192,7 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
     if (!message || !this.channel) return;
 
     try {
-      const event = JSON.parse(message.content.toString()) as HypatiaEvent;
+      const event = this.parseEvent(message);
       const handler = this.handlers.get(event.type);
       if (!handler) {
         this.logger.warn(`No handler for event type ${event.type}`);
@@ -214,5 +225,14 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
       // nack without requeue → message goes to DLQ via x-dead-letter-exchange.
       this.channel.nack(message, false, false);
     }
+  }
+
+  private parseEvent(message: ConsumeMessage): HypatiaEvent {
+    const result = hypatiaEventSchema.safeParse(JSON.parse(message.content.toString()));
+    if (!result.success) {
+      throw new Error('Invalid HypatiaEvent envelope');
+    }
+
+    return result.data as HypatiaEvent;
   }
 }

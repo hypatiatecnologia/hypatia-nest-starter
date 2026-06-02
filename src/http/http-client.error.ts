@@ -10,7 +10,16 @@ export class HttpClientError extends Error {
     method: string,
     url: string,
   ) {
-    super(`HTTP ${statusCode} for ${method} ${url}`);
+    super(`HTTP ${statusCode} for ${method} ${sanitizeUrlForLog(url)}`);
     this.name = 'HttpClientError';
+  }
+}
+
+function sanitizeUrlForLog(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return url.split('?')[0];
   }
 }

@@ -1,4 +1,5 @@
-import { Module } from '@nestjs/common';
+import { DynamicModule, Module } from '@nestjs/common';
+import { AppConfig } from '../../config/configuration';
 import { ExampleController } from './example.controller';
 import { ExampleService } from './example.service';
 import { ExampleEventConsumer } from './example-event.consumer';
@@ -17,11 +18,16 @@ import { ExampleEventConsumer } from './example-event.consumer';
  *   <feature>.service.ts
  *   dto/*.dto.ts
  */
-const isConsumer = process.env.RABBITMQ_MODE === 'consumer';
+@Module({ providers: [] })
+export class ExampleModule {
+  static register(config: AppConfig): DynamicModule {
+    const isConsumer = config.rabbitmqMode === 'consumer';
 
-@Module({
-  // Worker archetype: no HTTP controllers — only queue handlers + /health.
-  controllers: isConsumer ? [] : [ExampleController],
-  providers: isConsumer ? [ExampleEventConsumer] : [ExampleService],
-})
-export class ExampleModule {}
+    return {
+      module: ExampleModule,
+      // Worker archetype: no HTTP controllers — only queue handlers + /health.
+      controllers: isConsumer ? [] : [ExampleController],
+      providers: isConsumer ? [ExampleEventConsumer] : [ExampleService],
+    };
+  }
+}

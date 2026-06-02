@@ -26,6 +26,12 @@ function buildMessage(event: HypatiaEvent): ConsumeMessage {
   } as ConsumeMessage;
 }
 
+function buildRawMessage(payload: unknown): ConsumeMessage {
+  return {
+    content: Buffer.from(JSON.stringify(payload)),
+  } as ConsumeMessage;
+}
+
 describe('RabbitMqService', () => {
   let service: RabbitMqService;
   let redis: { exists: jest.Mock; set: jest.Mock };
@@ -168,6 +174,17 @@ describe('RabbitMqService', () => {
       expect(nack).toHaveBeenCalledWith(expect.anything(), false, false);
       expect(ack).not.toHaveBeenCalled();
       expect(redis.set).not.toHaveBeenCalled();
+    });
+
+    it('nacks malformed event envelopes before dedupe', async () => {
+      await (
+        service as unknown as { handleMessage: (message: ConsumeMessage | null) => Promise<void> }
+      ).handleMessage(buildRawMessage({ type: 'example.created', payload: { message: 'hello' } }));
+
+      expect(handler).not.toHaveBeenCalled();
+      expect(redis.exists).not.toHaveBeenCalled();
+      expect(nack).toHaveBeenCalledWith(expect.anything(), false, false);
+      expect(ack).not.toHaveBeenCalled();
     });
 
     it('acks messages with no registered handler', async () => {

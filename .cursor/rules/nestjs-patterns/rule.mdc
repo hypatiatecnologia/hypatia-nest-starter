@@ -78,6 +78,8 @@ Infra compartilhada: `src/prisma/`, `src/redis/`, `src/rabbitmq/`, `src/config/`
 ## Módulo Nest
 
 - Registrar controllers e providers no `@Module` da feature.
+- Features em `src/modules/<feature>/<feature>.module.ts` são auto-descobertas por `AppModule.register()`; não importe manualmente no `AppModule`.
+- Quando controllers/providers dependem do archetype, exponha `static register(config: AppConfig): DynamicModule` e decida por `config.rabbitmqMode`; não leia `process.env` no decorator do módulo.
 - Importar módulos de infra (`PrismaModule`, `RedisModule`, `RabbitMqModule`) — não instanciar clientes manualmente.
 
 ## Nomenclatura

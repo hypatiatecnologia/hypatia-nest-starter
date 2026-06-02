@@ -107,7 +107,7 @@ npm run start:dev
 - [ ] `.cursor/` presente no novo repo
 - [ ] `npm test` passa no novo repo
 
-Remova `ExampleModule` quando começar features reais.
+Remova `src/modules/example/` quando começar features reais; novos módulos em `src/modules/<feature>/<feature>.module.ts` são descobertos automaticamente.
 
 ---
 
