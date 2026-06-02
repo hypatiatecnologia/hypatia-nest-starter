@@ -38,7 +38,7 @@ Source files include onboarding comments — start with:
 | File | What you learn |
 | --- | --- |
 | `src/main.ts` | Bootstrap, security, Swagger |
-| `src/app.module.ts` | Module layout and infra wiring |
+| `src/app.module.ts` | Infra wiring + auto-discovery of feature modules |
 | `src/config/configuration.ts` | Env vars and `RABBITMQ_MODE` |
 | `src/common/correlation/` | `x-correlation-id` middleware + AsyncLocalStorage |
 | `src/rabbitmq/rabbitmq.service.ts` | Event envelope, publish/consume, DLQ |
@@ -193,6 +193,22 @@ curl -X POST http://localhost:3000/example/events \
   -d '{"type":"example.created","payload":{"message":"hello"}}'
 ```
 
+## Feature modules (auto-discovery)
+
+Feature modules under `src/modules/<feature>/` are **registered automatically** at bootstrap — no manual import in `AppModule`.
+
+Create a module following the convention:
+
+```
+src/modules/<feature>/<feature>.module.ts
+```
+
+Example: `src/modules/orders/orders.module.ts` exports `OrdersModule` and is picked up on the next start.
+
+Shared infrastructure (`PrismaModule`, `RedisModule`, `RabbitMqModule`, `HttpClientModule`) stays wired explicitly in `AppModule.register()`. Only domain modules under `src/modules/` use discovery.
+
+Implementation: `src/common/module-discovery/module-discovery.ts` · wired via `AppModule.register()` in `main.ts`.
+
 ## Project layout
 
 ```
@@ -201,7 +217,11 @@ src/
 ├── prisma/           # PostgreSQL
 ├── redis/            # Cache, locks, event dedupe
 ├── rabbitmq/         # Publisher + consumer + DLQ
-└── modules/example/  # Sample api endpoint or worker handler
+├── common/
+│   └── module-discovery/  # Auto-loads src/modules/*/*.module.ts
+└── modules/
+    └── <feature>/    # One folder per domain — auto-discovered at bootstrap
+        └── <feature>.module.ts
 ```
 
 ## Scripts

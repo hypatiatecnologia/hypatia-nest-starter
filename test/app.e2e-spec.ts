@@ -19,7 +19,7 @@ describe('App (e2e)', () => {
     };
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
+      imports: [await AppModule.register()],
     })
       .overrideProvider(PrismaService)
       .useValue({ $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]) })

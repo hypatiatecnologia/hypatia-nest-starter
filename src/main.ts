@@ -22,7 +22,7 @@ import { AppConfig } from './config/configuration';
  * Health probe: http://localhost:3000/health
  */
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create(await AppModule.register(), { bufferLogs: true });
 
   // Graceful shutdown on SIGTERM/SIGINT (Docker, k8s rolling deploys).
   app.enableShutdownHooks();
