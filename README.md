@@ -14,6 +14,51 @@ Extracted from [hades-vault](https://github.com/hypatia/data-vault) (Hades) infr
 
 See `archetypes/api.env.example` and `archetypes/worker.env.example`.
 
+## Deployment strategies
+
+This starter supports two topologies without changing the application code — only configuration and the number of running processes differ.
+
+### Microservices (default Pantheon topology)
+
+Each bounded context lives in its own repository and process, communicating via REST (sync) or RabbitMQ (async).
+
+```
+[Cerberus Gateway]
+      │
+      ├─ REST ──► [Argus / api]
+      ├─ REST ──► [Athena / api]  ──publish──► hypatia.events ──► [Hermes / worker]
+      └─ REST ──► [Midas  / api]
+```
+
+Scaffold a new service from this starter:
+
+```bash
+npm run create-service -- <service-name> [api|worker]
+```
+
+Each service gets its own Prisma schema, Redis namespace, RabbitMQ queue, and `.cursor/` config. Set `RABBITMQ_MODE` per archetype (`publisher` for api, `consumer` for worker).
+
+### Modular monolith
+
+All domain modules run inside a **single NestJS process and repository**. Communication between features happens via NestJS dependency injection instead of network calls.
+
+**Minimum changes required:**
+
+1. Set `RABBITMQ_MODE=off` in `.env` — no AMQP connection is established.
+2. Add each feature module under `src/modules/<feature>/` as usual — auto-discovery picks them up automatically.
+3. For cross-module calls, import the neighboring module in your feature's `@Module({ imports: [...] })` instead of publishing events.
+4. If you need loose coupling between modules without HTTP/AMQP, use [`@nestjs/event-emitter`](https://docs.nestjs.com/techniques/events) for in-process events.
+
+**What stays exactly the same:** module structure, Prisma, Redis, Correlation ID middleware, error handling, Swagger, and all Cursor rules.
+
+**Extracting a module to a microservice later:**
+
+Because each `src/modules/<feature>/` is already self-contained, extraction is surgical:
+
+1. Move the folder to a new repo scaffolded with `create-service`.
+2. Replace direct service imports with `HttpClientService` calls or RabbitMQ events.
+3. Set `RABBITMQ_MODE` and infrastructure env vars in the new service.
+
 ## Onboarding (novos devs)
 
 **First time?** Start with [docs/onboarding/PRIMEIROS-PASSOS.md](docs/onboarding/PRIMEIROS-PASSOS.md) (~10 min: tests without Docker, live API, `create-service` smoke check).
