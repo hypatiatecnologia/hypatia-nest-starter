@@ -24,6 +24,8 @@ export interface AppConfig {
   rabbitmqExchange: string;
   rabbitmqDlxExchange: string;
   rabbitmqQueue: string;
+  argusJwtSecret?: string;
+  internalApiKey?: string;
 }
 
 const envSchema = z
@@ -33,11 +35,13 @@ const envSchema = z
     SERVICE_NAME: z.string().min(1, 'SERVICE_NAME is required'),
     DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
     REDIS_URL: z.string().min(1, 'REDIS_URL is required').default('redis://localhost:6379'),
-    RABBITMQ_URL: z.string().default('amqp://guest:guest@localhost:5672'),
+    RABBITMQ_URL: z.string().default('amqp://hypatia:hypatia-rabbitmq-dev@localhost:5672'),
     RABBITMQ_MODE: z.enum(['off', 'publisher', 'consumer']).default('off'),
     RABBITMQ_EXCHANGE: z.string().default('hypatia.events'),
     RABBITMQ_DLX_EXCHANGE: z.string().default('hypatia.events.dlx'),
     RABBITMQ_QUEUE: z.string().default('hypatia-service.events'),
+    ARGUS_JWT_SECRET: z.string().optional(),
+    INTERNAL_API_KEY: z.string().optional(),
   })
   .superRefine((env, ctx) => {
     if (env.RABBITMQ_MODE !== 'off' && !env.RABBITMQ_URL?.trim()) {
@@ -45,6 +49,15 @@ const envSchema = z
         code: z.ZodIssueCode.custom,
         path: ['RABBITMQ_URL'],
         message: 'RABBITMQ_URL is required when RABBITMQ_MODE is publisher or consumer',
+      });
+    }
+
+    const hasAuthSecret = Boolean(env.ARGUS_JWT_SECRET?.trim() || env.INTERNAL_API_KEY?.trim());
+    if (env.NODE_ENV === 'production' && !hasAuthSecret) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['ARGUS_JWT_SECRET'],
+        message: 'ARGUS_JWT_SECRET or INTERNAL_API_KEY is required in production',
       });
     }
   });
@@ -61,6 +74,8 @@ function mapToAppConfig(env: z.infer<typeof envSchema>): AppConfig {
     rabbitmqExchange: env.RABBITMQ_EXCHANGE,
     rabbitmqDlxExchange: env.RABBITMQ_DLX_EXCHANGE,
     rabbitmqQueue: env.RABBITMQ_QUEUE,
+    argusJwtSecret: env.ARGUS_JWT_SECRET?.trim() || undefined,
+    internalApiKey: env.INTERNAL_API_KEY?.trim() || undefined,
   };
 }
 

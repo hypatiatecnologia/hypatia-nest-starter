@@ -57,12 +57,25 @@ describe('validateConfig', () => {
     expect(config.port).toBe(8080);
   });
 
-  it('defaults RABBITMQ_MODE to "off" when not provided', () => {
-    const envWithoutMode = Object.fromEntries(
-      Object.entries(validEnv).filter(([key]) => key !== 'RABBITMQ_MODE'),
-    );
-    const config = validateConfig(envWithoutMode);
-    expect(config.rabbitmqMode).toBe('off');
+  it('requires auth secrets in production', () => {
+    expect(() =>
+      validateConfig({
+        ...validEnv,
+        NODE_ENV: 'production',
+        ARGUS_JWT_SECRET: '',
+        INTERNAL_API_KEY: '',
+      }),
+    ).toThrow('ARGUS_JWT_SECRET or INTERNAL_API_KEY is required in production');
+  });
+
+  it('maps optional auth secrets when provided', () => {
+    const config = validateConfig({
+      ...validEnv,
+      ARGUS_JWT_SECRET: 'jwt-secret',
+      INTERNAL_API_KEY: 'api-key',
+    });
+    expect(config.argusJwtSecret).toBe('jwt-secret');
+    expect(config.internalApiKey).toBe('api-key');
   });
 });
 

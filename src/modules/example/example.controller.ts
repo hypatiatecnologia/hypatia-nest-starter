@@ -1,5 +1,5 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ExampleService } from './example.service';
 import { PublishExampleEventDto } from './dto/publish-example-event.dto';
 import { CORRELATION_ID_HEADER } from '../../common/correlation/correlation.constants';
@@ -10,10 +10,12 @@ import { CORRELATION_ID_HEADER } from '../../common/correlation/correlation.cons
  * Try it:
  *   curl -X POST http://localhost:3000/example/events \
  *     -H 'Content-Type: application/json' \
+ *     -H 'x-api-key: change-me-local-dev' \
  *     -H 'x-correlation-id: my-trace-id' \
  *     -d '{"type":"example.created","payload":{"message":"hello"}}'
  */
 @ApiTags('example')
+@ApiBearerAuth()
 @Controller('example')
 export class ExampleController {
   constructor(private readonly exampleService: ExampleService) {}

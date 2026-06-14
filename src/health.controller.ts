@@ -1,6 +1,7 @@
 import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
+import { Public } from './common/auth/public.decorator';
 import { PrismaService } from './prisma/prisma.service';
 import { RedisService } from './redis/redis.service';
 import { RabbitMqService } from './rabbitmq/rabbitmq.service';
@@ -20,6 +21,7 @@ export class HealthController {
     private readonly rabbitmq: RabbitMqService,
   ) {}
 
+  @Public()
   @Get()
   @ApiResponse({ status: 200, description: 'All dependencies healthy' })
   @ApiResponse({ status: 503, description: 'One or more dependencies unreachable' })

@@ -44,6 +44,13 @@ jobs:
       - run: npm ci
       - run: npm audit --audit-level=high
 
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.30.0
+        with:
+          scan-type: fs
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
       - name: Gitleaks
         env:
           GITLEAKS_VERSION: '8.24.2'

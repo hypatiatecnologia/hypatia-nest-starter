@@ -8,7 +8,7 @@
 # Endpoints:
 #   API:        http://localhost:3000
 #   Swagger:    http://localhost:3000/docs/api
-#   RabbitMQ UI: http://localhost:15672  (guest/guest)
+#   RabbitMQ UI: http://localhost:15672  (RABBITMQ_USER / RABBITMQ_PASSWORD)
 
 services:
   postgres:
@@ -31,13 +31,27 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    command: ['redis-server', '--appendonly', 'yes']
+    command:
+      [
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--requirepass',
+        '${REDIS_PASSWORD:-hypatia-redis-dev}',
+      ]
     ports:
       - '6379:6379'
     volumes:
       - redisdata:/data
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test:
+        [
+          'CMD',
+          'redis-cli',
+          '-a',
+          '${REDIS_PASSWORD:-hypatia-redis-dev}',
+          'ping',
+        ]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -45,6 +59,9 @@ services:
   rabbitmq:
     image: rabbitmq:3-management-alpine
     restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-hypatia}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-hypatia-rabbitmq-dev}
     ports:
       - '5672:5672'    # AMQP
       - '15672:15672'  # Management UI

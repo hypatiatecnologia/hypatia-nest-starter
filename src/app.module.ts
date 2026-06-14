@@ -7,6 +7,7 @@ import { randomUUID } from 'crypto';
 import { config as loadDotenv } from 'dotenv';
 import loadConfiguration, { validateConfig } from './config/configuration';
 import { CORRELATION_ID_HEADER } from './common/correlation/correlation.constants';
+import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { discoverFeatureModules } from './common/module-discovery/module-discovery';
 import { HttpClientModule } from './http/http-client.module';
@@ -80,6 +81,7 @@ export class AppModule {
       ],
       controllers: [HealthController],
       providers: [
+        { provide: APP_GUARD, useClass: JwtAuthGuard },
         { provide: APP_GUARD, useClass: ThrottlerGuard },
         { provide: APP_FILTER, useClass: AllExceptionsFilter },
       ],

@@ -4,7 +4,7 @@
 #   builder — installs deps, generates Prisma client, compiles TypeScript
 #   runner  — production image with dist/ + node_modules only
 
-FROM node:20-bookworm-slim AS builder
+FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS builder
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates \
@@ -16,7 +16,7 @@ RUN npm ci
 COPY . .
 RUN npx prisma generate && npm run build
 
-FROM node:20-bookworm-slim AS runner
+FROM node:20-bookworm-slim@sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0 AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 

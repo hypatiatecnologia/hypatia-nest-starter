@@ -43,18 +43,20 @@ async function bootstrap() {
 
   const config = app.get(ConfigService<AppConfig, true>);
   const serviceName = config.get('serviceName', { infer: true });
+  const nodeEnv = config.get('nodeEnv', { infer: true });
 
-  const swagger = new DocumentBuilder()
-    .setTitle(`${serviceName} API`)
-    .setDescription('Hypatia NestJS microservice')
-    .setVersion('0.1.0')
-    .addBearerAuth()
-    .build();
-  const document = SwaggerModule.createDocument(app, swagger);
-  SwaggerModule.setup('docs/api', app, document);
+  if (nodeEnv !== 'production') {
+    const swagger = new DocumentBuilder()
+      .setTitle(`${serviceName} API`)
+      .setDescription('Hypatia NestJS microservice')
+      .setVersion('0.1.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, swagger);
+    SwaggerModule.setup('docs/api', app, document);
+  }
 
   const port = config.get('port', { infer: true });
-  const nodeEnv = config.get('nodeEnv', { infer: true });
   const rabbitmqMode = config.get('rabbitmqMode', { infer: true });
   const logger = app.get(Logger);
   await app.listen(port, '0.0.0.0');

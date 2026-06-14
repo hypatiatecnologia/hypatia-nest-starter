@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
+import { API_KEY_HEADER } from '../src/common/auth/auth.constants';
 import { AppModule } from '../src/app.module';
 import { correlationMiddleware } from '../src/common/correlation/correlation.middleware';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -74,6 +75,7 @@ describe('App (e2e)', () => {
 
     const response = await request(app.getHttpServer())
       .post('/example/events')
+      .set(API_KEY_HEADER, 'test-internal-api-key')
       .set('x-correlation-id', 'e2e-example-trace')
       .send({ type: 'example.created', payload: { message: 'hello' } })
       .expect(201);
@@ -84,9 +86,17 @@ describe('App (e2e)', () => {
     expect(rabbitmq.publish).toHaveBeenCalledWith('example.created', { message: 'hello' });
   });
 
+  it('POST /example/events rejects unauthenticated requests', async () => {
+    await request(app.getHttpServer())
+      .post('/example/events')
+      .send({ type: 'example.created', payload: { message: 'hello' } })
+      .expect(401);
+  });
+
   it('POST /example/events rejects invalid payload', async () => {
     const response = await request(app.getHttpServer())
       .post('/example/events')
+      .set(API_KEY_HEADER, 'test-internal-api-key')
       .send({ type: 'example.created', payload: 'not-an-object', extra: true })
       .expect(400);
 
