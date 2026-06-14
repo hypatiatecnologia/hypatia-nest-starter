@@ -20,6 +20,10 @@ description: Diagnóstico técnico do projeto — dois .md na raiz (referência 
 
 **Objetivo:** dois `.md` na raiz (referência + issues com ROI). **Done when:** arquivos gerados e resumo no chat.
 
+**Quando usar:** assumir/auditar um projeto; planejar sprint com base em débito técnico; snapshot para stakeholders.
+
+**Não usar quando:** doc técnica de um módulo → [`create-doc`](./create-doc.md); só segurança → [`security-review`](./security-review.md); README de onboarding → [`readme`](./readme.md).
+
 > **⚠️ Revisão humana obrigatória antes de commitar os arquivos gerados.**
 > Produzidos por LLM com base na leitura do código — podem conter imprecisões, estimativas incorretas ou informações desatualizadas. Não commitar sem revisar, especialmente: scores de impacto, paths referenciados e a seção de riscos. Verificar que nenhuma informação sensível (credenciais, nomes de clientes, dados de produção) foi incluída.
 

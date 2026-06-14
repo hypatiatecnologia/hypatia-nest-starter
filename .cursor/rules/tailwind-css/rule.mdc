@@ -1,0 +1,31 @@
+---
+description: Padrões de estilização com Tailwind CSS, utilitários cn(), e regras de especificidade.
+globs:
+  - "**/*.tsx"
+  - "tailwind.config.*"
+  - "**/*.css"
+alwaysApply: false
+---
+
+# Tailwind CSS e Estilização
+
+Ativar sempre que estiver trabalhando com estilos ou alterando a estrutura visual de um projeto que utiliza Tailwind CSS.
+
+> Arquitetura e Componentes: [frontend-architecture](../frontend-architecture/rule.mdc)
+
+## Fusão Condicional e Conflitos (Obrigatório)
+Sempre use uma função utilitária (normalmente chamada de `cn` em projetos modernos) que combina **`clsx`** e **`tailwind-merge`** ao repassar ou construir a propriedade `className`.
+- **Por que?** Evita a ordem imprevisível de classes css. Se um componente define `px-2` mas consome uma prop extra `px-4`, o `twMerge` assegura que o mais específico (`px-4`) vença com segurança.
+- Exemplo Correto: `className={cn("bg-blue-500 rounded", className)}`
+- Exemplo Incorreto: ``className={`bg-blue-500 rounded ${className}`}`` ou `<div className={clsx("px-2", customClass)} />` (falta o `twMerge`).
+
+## Composição e Boas Práticas
+- **Design Tokens em vez de Arbitrários:** Prefira tokens do seu tema configurado (`text-brand-500`, `p-4`) a valores arbitrários (`text-[#333]`, `p-[16px]`). Só use arbitrários quando o valor for estritamente um "one-off" imutável.
+- **Proibido em componentes:** classes de cor brutas da paleta Tailwind (`bg-white`, `text-black`, `text-gray-500`, `bg-gray-100`, etc.). Use sempre tokens semânticos (`bg-background`, `text-foreground`, `text-muted-foreground`). O objetivo é que o tema (claro/escuro) funcione sem exceções.
+- **CSS Variables com HSL:** ao definir tokens em `index.css` ou `globals.css`, use valores HSL sem a função `hsl()` — ex: `--background: 0 0% 100%`. Isso permite modificar opacidade via `bg-background/50` sem redefinir a variável.
+- **Ordem de Classes:** Tente manter uma ordem lógica na declaração (ex: Layout/Display → Espaçamento → Tipografia → Cor/Visual → Interações/Breakpoints).
+- **Extração Segura:** Se extrair classes Tailwind para variáveis, certifique-se de usar templates literais intactos ou arrays. O Tailwind não consegue ler classes formadas dinamicamente (ex: `bg-${color}-500` falhará). Use dicionários se precisar de classes dinâmicas ou inclua a string inteira.
+- **Responsividade:** Adote a abordagem "Mobile First". Defina as classes base para mobile e use `md:`, `lg:` para overrides em telas maiores.
+
+## Reutilização de Componentes UI
+Se o projeto utilizar bibliotecas de componentes agnósticos (como Radix UI) e injetar estilos, garanta que os estilos base da biblioteca não sofram overrides silenciosos sem o uso consistente da função `cn`.

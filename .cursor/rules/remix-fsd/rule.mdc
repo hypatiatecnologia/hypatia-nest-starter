@@ -1,0 +1,89 @@
+---
+description: Remix (React Router v7) + Feature-Sliced Design. Não usar em Next.js nem NestJS.
+globs:
+  - react-router.config.ts
+  - app/routes/**/*.ts
+  - app/routes/**/*.tsx
+  - src/features/**/*.ts
+  - src/features/**/*.tsx
+  - src/lib/supabase/**/*.ts
+  - src/db/**/*.ts
+alwaysApply: false
+---
+
+# Remix + Feature-Sliced Design
+
+> Precedência: [architecture](mdc:../architecture/rule.mdc), [typescript-react](mdc:../typescript-react/rule.mdc), [typescript-node](mdc:../typescript-node/rule.mdc), [errors-and-logging](mdc:../errors-and-logging/rule.mdc), [typescript-security](mdc:../security/typescript-security.mdc).
+
+Esta rule descreve o padrão **React Router v7 / Remix** com **FSD**. Não usar APIs do Next.js App Router (Server Actions, `next/*`).
+
+## Layout do projeto
+
+| Concern | Location |
+| --- | --- |
+| Rotas (loaders, actions) | `app/routes/` |
+| Lógica de domínio | `src/features/[domain]/` |
+| Schemas Zod | `src/features/[domain]/schemas.ts` |
+| Auth/DB calls | `src/features/[domain]/actions.ts` |
+| Queries de leitura | `src/features/[domain]/queries.ts` |
+| UI da feature | `src/features/[domain]/components/` |
+| UI compartilhada (shadcn) | `app/components/ui/` |
+| Schema e client Drizzle | `src/db/` |
+| Env validado | `src/env.ts` |
+| Supabase SSR | `src/lib/supabase/` |
+
+## Rotas (`app/routes/`)
+
+- **Autodiscovery:** `app/routes.ts` usa `flatRoutes()` (`@react-router/fs-routes`). Novas rotas = novo arquivo em `app/routes/` — **não** registrar manualmente em `routes.ts`. Convenção de nomes: [File Route Conventions](https://reactrouter.com/7.16.0/how-to/file-route-conventions) (ex.: `_index.tsx` → `/` landing pública, `app._index.tsx` → `/app` painel autenticado, `api.ping.ts` → `/api/ping`, `_auth.login.tsx` → `/login` com layout pathless `_auth.tsx`).
+- **Loaders** para GET; **actions** para POST/PUT/DELETE.
+- Rotas **magras**: validar entrada, delegar para `src/features/[domain]/actions.ts` ou `queries.ts`, retornar `data` ou `redirect`.
+- Usar `<Form>` do React Router para mutações — não `fetch` manual no submit quando `<Form>` bastar.
+- **Proibido** lógica de negócio pesada diretamente no arquivo de rota.
+- **Proibido** Server Actions do Next.js App Router (`"use server"`, `next/*`).
+
+## Feature-Sliced Design (`src/features/`)
+
+```
+src/features/<domain>/
+├── schemas.ts
+├── actions.ts
+├── queries.ts
+└── components/
+```
+
+- Um domínio por pasta (`auth`, `billing`, etc.).
+- `schemas.ts`: Zod compartilhado entre cliente e servidor.
+- `actions.ts`: mutações, integração Supabase/Drizzle.
+- `queries.ts`: leituras reutilizáveis (loaders chamam daqui).
+- Componentes específicos do domínio em `components/`; genéricos em `app/components/ui/`.
+
+## Validação
+
+- **Zod** em loader/action (servidor) e no cliente antes de submit.
+- Servidor é fonte de verdade — validação cliente é UX, não segurança.
+- Env via `src/env.ts` (Zod, fail-fast) — não acessar `process.env` solto fora dele.
+
+## Supabase SSR
+
+- Server: `src/lib/supabase/server.ts` (cookies, sessão SSR).
+- Browser: `src/lib/supabase/client.ts`.
+- **Proibido** expor service role key no bundle cliente.
+
+## Drizzle ORM
+
+- Schema em `src/db/schema.ts`; client em `src/db/client.ts` (ou equivalente do projeto).
+- Queries via Drizzle — evitar SQL raw salvo necessidade comprovada.
+- Migrações versionadas com Drizzle Kit (`npm run db:generate`).
+
+## Erros e respostas
+
+- **Formulários:** envelope `{ ok: true, data }` / `{ ok: false, errors }` nas actions de feature — não lançar `DomainError` em fluxos de form.
+- **Rotas `api/*`:** `DomainError` (`src/lib/errors/domain-error.ts`) + `toProblemResponse()` (RFC 7807 / `application/problem+json`). Status HTTP derivado de `DOMAIN_ERROR_STATUS` no boundary — não hardcoded no domínio.
+- **Proibido** `catch` vazio em rotas API; classificar com `toProblemResponse` e logar com `logServerError`.
+- **Proibido** stack traces ou detalhes internos na resposta HTTP.
+- **Logs:** `logServerError` + `redactPayload` (`src/lib/observability/`); sem PII/senhas em texto claro. Sentry: `beforeSend` em `instrument.server.mjs`.
+
+## Testes
+
+- Vitest + Testing Library para componentes e helpers de feature.
+- Testar schemas Zod e actions com mocks de Supabase/Drizzle na fronteira.

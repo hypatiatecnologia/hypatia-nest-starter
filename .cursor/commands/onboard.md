@@ -19,9 +19,25 @@ Use este comando quando:
 - Você está integrando um repositório externo ao ecossistema de rules deste projeto.
 - O objetivo é mapear rapidamente um projeto desconhecido e configurá-lo corretamente.
 
+**Copiar `.cursor/` para outro repo:** ver [PORTABILITY.md](../PORTABILITY.md) (checklists por stack).
+
+## Atalho — repos Remix / React Router v7
+
+Se o repo tem `react-router.config.ts` ou `app/routes/`:
+
+1. Abrir o projeto no **Cursor** (`.cursor/` já incluído).
+2. Seguir [docs/onboarding/PRIMEIROS-PASSOS.md](../../docs/onboarding/PRIMEIROS-PASSOS.md) na raiz do repo.
+3. `cp .env.example .env` e preencher variáveis Supabase/Drizzle.
+4. `nvm use && npm ci && npm run dev`.
+5. Migrações Drizzle (se `drizzle.config.*` existir): `npm run db:generate` conforme scripts do `package.json`.
+6. Rules: [remix-fsd](../rules/remix-fsd/rule.mdc), [typescript-react](../rules/typescript-react/rule.mdc), [tester](../rules/tester/rule.mdc).
+7. Commands úteis: `/explain`, `/commit`, `/pr`.
+
+---
+
 ## Atalho — repos Hypatia (hypatia-nest-starter)
 
-Se o repo foi criado via `npm run create-service` ou é o starter:
+Se o repo foi criado via `npm run create-service` ou tem `nest-cli.json`:
 
 1. Abrir o projeto no **Cursor** (`.cursor/` já incluído).
 2. Seguir [docs/onboarding/PRIMEIROS-PASSOS.md](../../docs/onboarding/PRIMEIROS-PASSOS.md) (Trilha A → B no starter; Trilha C após scaffold).
@@ -31,8 +47,8 @@ Se o repo foi criado via `npm run create-service` ou é o starter:
 6. Infra híbrida: `docker compose up -d --wait postgres redis rabbitmq`.
 7. `nvm use && npm ci && npx prisma generate && npx prisma migrate deploy && npm run start:dev` — ou `npm run setup:local` + `npm run start:dev`.
 8. Commands úteis: `/explain`, `/review-nest-patterns`, `/commit`, `/pr`.
-9. Erros comuns: [docs/onboarding/TROUBLESHOOTING.md](../../docs/onboarding/TROUBLESHOOTING.md).
-10. Rule Pantheon: [hypatia-ecosystem](../rules/hypatia-ecosystem/rule.mdc).
+9. Erros comuns: consultar `docs/onboarding/TROUBLESHOOTING.md` quando o repo tiver esse arquivo.
+10. Rule Pantheon: [hypatia-ecosystem](../rules/hypatia-ecosystem/rule.mdc) (picker manual).
 
 ---
 
@@ -46,6 +62,9 @@ Inspecionar nesta ordem:
 
 1. **Manifesto de pacotes / módulos:**
    - `package.json` → Node/TypeScript (checar `scripts`, `dependencies`, `engines.node`).
+   - `react-router.config.ts` ou `app/routes/` → Remix / React Router v7.
+   - `nest-cli.json` → NestJS / Hypatia Pantheon.
+   - `next.config.*` → Next.js App Router.
    - `pom.xml` / `build.gradle` → Java/Kotlin Spring.
    - `go.mod` → Go (checar versão do runtime).
    - `pyproject.toml` / `setup.cfg` / `requirements.txt` → Python.
@@ -111,7 +130,9 @@ cp .env.example .env
 docker compose up -d
 
 # 5. Executar migrações (se o projeto tiver banco)
-# → Usar o comando detectado na Fase 1 (Prisma, Alembic, Flyway, etc.)
+# → Prisma: npx prisma migrate deploy
+# → Drizzle: npm run db:generate (ou script equivalente no package.json)
+# → Outros: Alembic, Flyway, etc. conforme stack detectada na Fase 1
 
 # 6. Verificar que o ambiente está funcional
 bun run lint && bun test     # se bun.lock; senão npm/yarn/pnpm — usar scripts reais do package.json
@@ -127,8 +148,9 @@ Com base na stack identificada, indicar quais rules ativar:
 
 | Stack detectada | Rule de stack | Rule de segurança | Overlay de testes |
 |---|---|---|---|
+| Remix / React Router v7 | `remix-fsd` + `typescript-react` | `typescript-security` | `tester` |
 | TypeScript + Fastify/Express/Nest | `typescript-node` | `typescript-security` | `tester` |
-| TypeScript + React | `typescript-react` | `typescript-security` | `tester` |
+| TypeScript + React (Next/SPA) | `typescript-react` | `typescript-security` | `tester` |
 | React Native + Expo | `typescript-react-native` | `typescript-security` | `tester` |
 | Java/Kotlin + Spring | `java-spring` | `java-security` | `tester` |
 | Go | `go` (auto via globs) | `go-security` (auto via globs) | `tester` |

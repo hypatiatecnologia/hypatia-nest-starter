@@ -6,7 +6,7 @@ description: Auditoria de segurança read-only (OWASP/CWE) em arquivo, pasta ou 
 
 **Quando usar:** revisar diff de PR, módulo sensível, antes de merge.
 
-**Não usar quando:** diagnóstico de sprint/ROI do repo inteiro → [`diagnostico`](./diagnostico.md) (dimensão SEG).
+**Não usar quando:** diagnóstico de sprint/ROI do repo inteiro → [`diagnostico`](./diagnostico.md) (dimensão SEG); hardening Supabase (RLS, Storage, Auth, service_role) → [`supabase-hardening`](./supabase-hardening.md).
 
 **Done when:** relatório no formato dos Passos 2–3; findings ordenados por severidade; sem PII/secrets no texto.
 

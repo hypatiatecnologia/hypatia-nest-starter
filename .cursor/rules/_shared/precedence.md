@@ -6,7 +6,7 @@ Fonte única de verdade citada por `principles`, `architecture` e `cognitive-com
 
 1. **`security/*`** da linguagem em contexto — sempre prevalece sobre convenções que enfraqueçam segurança
 2. **`architecture`** + **`cognitive-complexity`** — camadas, DIP, invariantes, limites de complexidade
-3. **`hypatia-ecosystem`** — quando presente (repos Hypatia), topologia Pantheon e regras transversais
+3. **`hypatia-ecosystem`** — somente em repos Pantheon (ativação manual); não ativar em repos Remix/Next
 4. **`nestjs-patterns`** ou **`company-patterns`** (conforme stack do repo) sobre regras genéricas de stack
 5. **Stack específica** (ex: `typescript-node` sobre validações gerais; `node-express` sobre validação Express)
 6. **`errors-and-logging`**, **`naming-and-files`**, **`linguagem-pt-br`** — convenções transversais
@@ -24,21 +24,25 @@ Quando duas rules parecem conflitar:
 
 ## Skills (fora de `.mdc`)
 
-| Situação | Skill | Localização |
-|----------|-------|-------------|
-| PR merge-ready (CI, comentários) | `babysit` | `skills-cursor/babysit/SKILL.md` |
-| Dividir trabalho em vários PRs | `split-to-prs` | `skills-cursor/split-to-prs/SKILL.md` |
-| Criar visualizações Canvas | `canvas` | `skills-cursor/canvas/SKILL.md` |
-| Criar nova regra | `create-rule` | `skills-cursor/create-rule/SKILL.md` |
-| Criar nova skill | `create-skill` | `skills-cursor/create-skill/SKILL.md` |
-| Criar novo hook | `create-hook` | `skills-cursor/create-hook/SKILL.md` |
-| Criar subagente especializado | `create-subagent` | `skills-cursor/create-subagent/SKILL.md` |
-| Migrar commands para skills | `migrate-to-skills` | `skills-cursor/migrate-to-skills/SKILL.md` |
-| Configurar status line no CLI | `statusline` | `skills-cursor/statusline/SKILL.md` |
-| Modificar settings.json | `update-cursor-settings` | `skills-cursor/update-cursor-settings/SKILL.md` |
-| Configuração de CLI | `update-cli-config` | `skills-cursor/update-cli-config/SKILL.md` |
-| Comandos shell especializados | `shell` | `skills-cursor/shell/SKILL.md` |
-| Uso do Cursor SDK | `sdk` | `skills-cursor/sdk/SKILL.md` |
+Built-ins (gerenciadas pelo Cursor em `~/.cursor/skills-cursor/` — não versionar cópia no repo):
+
+| Situação | Skill |
+|----------|-------|
+| PR merge-ready (CI, comentários) | `babysit` |
+| Dividir trabalho em vários PRs | `split-to-prs` |
+| Criar visualizações Canvas | `canvas` |
+| Criar nova regra | `create-rule` |
+| Criar nova skill | `create-skill` |
+| Criar novo hook | `create-hook` |
+| Criar subagente especializado | `create-subagent` |
+| Migrar commands para skills | `migrate-to-skills` |
+| Configurar status line no CLI | `statusline` |
+| Modificar settings.json | `update-cursor-settings` |
+| Configuração de CLI | `update-cli-config` |
+| Comandos shell especializados | `shell` |
+| Uso do Cursor SDK | `sdk` |
+
+Do projeto (versionadas): `review-design-system` em `.cursor/skills/review-design-system/SKILL.md`.
 
 Ver `commands/COMMANDS.md` para índice completo.
 

@@ -3,7 +3,6 @@ description: Express legado — routers, handler de erro, validação do package
 globs:
   [
     "**/express/**/*.ts",
-    "**/routes/**/*.ts",
     "**/middleware/**/*.ts",
     "**/app.ts",
     "**/server.ts",

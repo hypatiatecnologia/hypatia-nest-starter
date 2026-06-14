@@ -1,12 +1,12 @@
 ---
-description: Revisa módulo NestJS deste repo (controller, service, DTO, Prisma, RabbitMQ). Preferir sobre review-patterns.
+description: Revisa módulo NestJS (controller, service, DTO, Prisma, RabbitMQ) em repos Nest/hypatia-nest-starter. Preferir sobre review-patterns.
 ---
 
 **Objetivo:** relatório Conforme/Avisos/Violações frente aos padrões NestJS do hypatia-nest-starter.
 
 **Quando usar:** antes do merge em `src/modules/<feature>/`.
 
-**Não usar quando:** stack Idea/Express em outro repo → [`review-patterns`](./review-patterns.md); auditoria OWASP → [`security-review`](./security-review.md).
+**Não usar quando:** repo sem NestJS (ex.: este boilerplate Remix); stack Idea/Express → [`review-patterns`](./review-patterns.md); auditoria OWASP → [`security-review`](./security-review.md).
 
 **Done when:** lint/build ok no escopo; resumo Passo 4 gerado.
 
@@ -16,7 +16,7 @@ Meta: [_shared/command-skeleton.md](./_shared/command-skeleton.md)
 
 Ativar: [hypatia-ecosystem](../rules/hypatia-ecosystem/rule.mdc), [nestjs-patterns](../rules/nestjs-patterns/rule.mdc), [typescript-node](../rules/typescript-node/rule.mdc), [architecture](../rules/architecture/rule.mdc).
 
-**Não** aplicar [company-patterns](../rules/company-patterns/rule.mdc) neste repositório.
+**Não** aplicar [company-patterns](../rules/company-patterns/rule.mdc) em repos NestJS. Scripts citados nos passos (`lint:ci`, `test`) são os do repo Nest alvo — confirmar no `package.json` dele.
 
 ---
 

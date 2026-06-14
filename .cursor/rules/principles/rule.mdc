@@ -11,7 +11,7 @@ alwaysApply: true
 
 Lista completa (rules, commands, skills, symlink): [_shared/precedence.md](mdc:../_shared/precedence.md).
 
-Resumo: **security** → **architecture** + **cognitive-complexity** → **company-patterns** (se aplicável) → stack → **errors-and-logging** → **openapi-contracts**. Commits: `_shared/commit-message.md` nos commands.
+Resumo: **security** → **architecture** + **cognitive-complexity** → **hypatia-ecosystem** (repos Pantheon, picker) → **nestjs-patterns** / **company-patterns** / **remix-fsd** (conforme stack) → stack genérica → **errors-and-logging** → **openapi-contracts**. Commits: `_shared/commit-message.md` nos commands.
 
 Em dúvida: alternativa **mais segura** e com **menos vazamento** de dados internos.
 
@@ -28,3 +28,13 @@ Em dúvida: alternativa **mais segura** e com **menos vazamento** de dados inter
 ## Return Early
 - Edge cases primeiro; caminho feliz linear.
 - Reduzir nesting com retornos antecipados.
+
+## Anti-preguiça (No Lazy Code Blocks)
+- **Proibido** omitir partes do arquivo ou código em suas respostas usando comentários como `// ... resto do código ...` ou `// código existente aqui`.
+- Sempre forneça o código completo da função ou trecho de modificação necessário para que o recurso de auto-aplicação do Cursor funcione perfeitamente.
+- Se o arquivo for muito grande, altere apenas a seção relevante inteira, sem truncar as funções internas que estão sendo criadas ou modificadas.
+
+## Código Autoexplicativo vs Comentários de IA
+- **Priorize código autoexplicativo**: Nomeie variáveis, funções e classes de forma clara e semântica para que o código explique o "como" por si só.
+- **Evite poluição por IA**: Não adicione comentários óbvios ou redundantes gerados por IA em linhas simples de código (ex: `const user = getUser(); // busca o usuário`).
+- **Use comentários apenas para o "Porquê"**: Adicione comentários apenas quando houver lógica de negócio complexa, restrições técnicas externas ou trade-offs de design não óbvios que necessitem de explicação humana.

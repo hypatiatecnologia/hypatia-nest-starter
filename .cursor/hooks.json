@@ -11,6 +11,11 @@
       {
         "command": ".cursor/hooks/redact-prompt.sh"
       }
+    ],
+    "afterFileEdit": [
+      {
+        "command": ".cursor/hooks/format-on-edit.sh"
+      }
     ]
   }
 }

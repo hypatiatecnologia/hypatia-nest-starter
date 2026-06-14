@@ -42,12 +42,12 @@ Meta: [_shared/command-skeleton.md](./_shared/command-skeleton.md) · Regras: [_
    ```
 
    **Inválido (e por quê):**
-   - `feat(auth): adiciona OAuth` — assunto em minúscula (`subject-case`) e sem referência (`references-empty`).
-   - `feat(auth): Adiciona OAuth` sem footer — falta `Refs:` ou ticket/atalho na mensagem.
+   - `feat(auth): adiciona OAuth` — assunto em minúscula (`subject-case`); sem referência (`references-empty`, quando o config a exigir).
+   - `feat(auth): Adiciona OAuth` sem footer — falta `Refs:` ou ticket/atalho (apenas em repos cujo config valida referência).
    - `docs(readme): Atualiza onboarding` — tipo `docs` não permitido (`type-enum`).
    - Assunto com mais de 50 caracteres após `: ` — `subject-max-length`.
 
-6. **Validar antes de responder** (quando existir `commitlint.config.js` na raiz do repo) — ver comando em [_shared/commit-message.md](./_shared/commit-message.md). Corrigir até passar; só então devolver o texto.
+6. **Validar antes de responder** (quando existir `commitlint.config.*` na raiz do repo) — ver comando em [_shared/commit-message.md](./_shared/commit-message.md). Corrigir até passar; só então devolver o texto.
 
 7. **Proibido** executar `git commit`, `git push` ou `--amend` — só texto para o usuário colar ou confirmar.
 

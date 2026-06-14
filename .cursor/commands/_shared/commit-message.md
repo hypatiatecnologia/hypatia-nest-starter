@@ -1,10 +1,10 @@
 # Regras de mensagem de commit (commitlint)
 
-Usar quando existir `commitlint.config.js` na raiz do repositório.
+Usar quando existir `commitlint.config.*` (`.js`, `.cjs`, `.mjs` ou `.ts`) na raiz do repositório.
 
 ## 1. Ler configuração do repo (obrigatório)
 
-Antes de redigir a mensagem, inspecionar `commitlint.config.js` na raiz:
+Antes de redigir a mensagem, inspecionar o `commitlint.config.*` na raiz:
 
 - **`rules['type-enum']`** — tipos permitidos (se ausente, usar Conventional padrão).
 - **`parserPreset.parserOpts.issuePrefixes`** — prefixos de ticket aceitos (ex.: `PLAT-`, `TK-`).
@@ -24,7 +24,7 @@ Corrigir até passar; só então devolver ao usuário.
 
 - Tipos: `chore`, `ci`, `feat`, `fix`, `perf`, `refactor`, `revert`, `test` — documentação → `chore(docs):`, deps → `chore(deps):` (não `docs`/`build` como tipo).
 - **Assunto** após `tipo(escopo): `: sentence-case, imperativo, sem ponto, **≤50 caracteres** (prefixo não conta).
-- **Referência obrigatória** salvo `ignores`: footer `Refs: PREFIX-123` (sem `#`) ou ticket na primeira linha.
+- **Referência** via footer `Refs: PREFIX-123` (sem `#`) ou ticket na primeira linha — obrigatória **quando o config definir** `references-empty`/`issuePrefixes`; se o config não validar referência (ex.: este boilerplate), tratar como convenção recomendada, não bloqueante.
 - Corpo opcional; linhas ≤72 caracteres; linha em branco antes do footer.
 
 Inferir ticket de `git branch --show-current` quando o nome da branch contiver um prefixo configurado + dígitos.

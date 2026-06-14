@@ -1,0 +1,60 @@
+---
+description: Handoff e resumo de sessão de chat no Cursor para economizar contexto (reset de chat)
+alwaysApply: true
+---
+
+# Handoff e Resumo de Sessão (Reset de Chat)
+
+Este arquivo define como o assistente do Cursor deve gerar resumos e prompts de transição para novos chats quando o usuário solicitar um handoff ou quiser limpar o contexto acumulado.
+
+## Quando aplicar
+
+Esta regra deve ser ativada sempre que o usuário solicitar:
+- Resumo para novo chat.
+- Handoff para continuar em outra sessão.
+- "Reset" de contexto ou início de um chat limpo.
+- Menções a termos como "resumir chat", "limpar contexto", "novo chat".
+
+## Diretrizes de Handoff
+
+Ao gerar o resumo de handoff para um novo chat, o assistente **deve** retornar uma resposta estruturada contendo um **bloco de prompt copiável** que descreva exatamente o estado atual e o próximo passo.
+
+### Estrutura do Prompt de Handoff
+
+O prompt gerado deve seguir este formato padrão, pronto para ser colado no novo chat:
+
+```markdown
+Eu preciso continuar o desenvolvimento do módulo [Nome do Módulo/Feature] a partir deste ponto.
+Abaixo está o resumo do progresso e o próximo passo imediato.
+
+---
+
+### 1. Estado Atual e Progresso
+- **Arquivos modificados/criados:**
+  - `@[caminho/do/arquivo1.ts]` (resumo conciso do que foi alterado)
+  - `@[caminho/do/arquivo2.tsx]` (resumo conciso do que foi alterado)
+- **O que já está funcionando:**
+  - [Funcionalidade A]
+  - [Funcionalidade B]
+
+### 2. Próximo Passo Imediato
+- **Tarefa:** [Descrição clara da única tarefa a ser realizada a seguir]
+- **Arquivos a serem criados/modificados:**
+  - `@[caminho/do/arquivo_alvo.ts]`
+- **Critério de Pronto:**
+  - [ ] [O que deve acontecer ou qual teste deve passar para validar]
+
+### 3. Decisões Técnicas & Contexto Relevante
+- [Decisão de design, regra de negócio ou padrão que deve ser mantido]
+
+---
+
+Por favor, implemente APENAS o próximo passo descrito acima. Não avance além do escopo delimitado.
+```
+
+## Regras de Execução para o Novo Chat
+
+No novo chat, o modelo deve:
+1. Ler **apenas** os arquivos explicitamente referenciados no prompt de handoff.
+2. Evitar ler o projeto inteiro ou carregar arquivos de contexto desnecessários.
+3. Focar em resolver a tarefa do próximo passo imediato, validando-a antes de sugerir novos passos.

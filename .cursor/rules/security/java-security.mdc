@@ -1,12 +1,14 @@
 ---
 description: Padrões obrigatórios de segurança para Java / Kotlin JVM backend
-globs: ["**/*.java"]
+globs:
+  - "**/*.java"
+  - src/main/kotlin/**/*.kt
 alwaysApply: false
 ---
 
 # Segurança — Java / Kotlin (JVM backend)
 
-Aplicável a código Java e, quando ativado manualmente, Kotlin em contextos JVM backend (Spring Boot, etc.). **Não** ativar automaticamente para Android ou KMP sem backend JVM. **Precedência:** ver [principles/rule.mdc](mdc:../principles/rule.mdc).
+Aplicável a código Java e Kotlin JVM backend (Spring Boot em `src/main/kotlin/` na raiz do módulo). **Não** cobre automaticamente `app/src/main/kotlin` (Android) nem KMP — usar picker nesses casos. **Precedência:** ver [principles/rule.mdc](mdc:../principles/rule.mdc).
 
 ## Segredos
 - **Proibido** credenciais em código ou `application.yml` versionado; usar env / secret manager aprovado.

@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "hooks/block-rm.sh",
+        "failClosed": true
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "hooks/redact-prompt.sh"
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "hooks/format-on-edit.sh"
+      }
+    ]
+  }
+}

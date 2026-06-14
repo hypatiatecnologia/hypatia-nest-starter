@@ -186,12 +186,12 @@ Extrair dos scripts do `package.json`, `Makefile` ou equivalente. Incluir apenas
 | Comando | Descrição |
 |---|---|
 | `npm run dev` | Inicia servidor de desenvolvimento com hot reload |
-| `npm test` | Executa a suite de testes |
+| `npm run test:run` | Executa a suite de testes |
 | `npm run lint` | Verifica e corrige estilo de código |
 | `npm run build` | Gera build de produção |
 ```
 
-Adaptar o prefixo (`npm`, `yarn`, `pnpm`, `make`, `go`, `python`, etc.) à stack detectada.
+Adaptar o prefixo (`npm`, `yarn`, `pnpm`, `make`, `go`, `python`, etc.) à stack detectada e listar **somente scripts que existem** no `package.json` real (ex.: não documentar `npm test` se o script é `test:run`).
 
 ---
 
@@ -229,9 +229,9 @@ Se `CONTRIBUTING.md` existir: referenciar o arquivo em vez de duplicar o conteú
 Leia o [CONTRIBUTING.md](./CONTRIBUTING.md) para o guia completo.
 ```
 
-Se não existir: gerar instruções mínimas baseadas no que foi detectado (branch pattern do `.github/`, branch padrão via `origin/HEAD`, e presença de `commitlint.config.js` na raiz).
+Se não existir: gerar instruções mínimas baseadas no que foi detectado (branch pattern do `.github/`, branch padrão via `origin/HEAD`, e presença de `commitlint.config.*` na raiz).
 
-**Com `commitlint.config.js`** (alinhar a [_shared/commit-message.md](./_shared/commit-message.md)):
+**Com `commitlint.config.*`** (alinhar a [_shared/commit-message.md](./_shared/commit-message.md)):
 
 ```markdown
 ## Contribuindo
@@ -240,7 +240,7 @@ Se não existir: gerar instruções mínimas baseadas no que foi detectado (bran
 2. Commits no formato Conventional Commits validados pelo Husky:
    - Tipos: `chore`, `ci`, `feat`, `fix`, `perf`, `refactor`, `revert`, `test` (documentação: `chore(docs): …`)
    - Assunto em sentence-case, até 50 caracteres após `tipo(escopo): `
-   - Footer obrigatório: `Refs: PLAT-123` (ou ticket na primeira linha; atalhos `[NOID]`, `[TEST]`, `[CI-CD]` quando aplicável)
+   - Footer `Refs: PLAT-123` quando o config exigir referência (ou ticket na primeira linha; atalhos `[NOID]`, `[TEST]`, `[CI-CD]` quando aplicável)
 3. Abra um Pull Request; o título deve seguir as mesmas regras se o merge for squash
 ```
 

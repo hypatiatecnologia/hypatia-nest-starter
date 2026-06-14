@@ -5,6 +5,7 @@ globs:
   - build.gradle
   - build.gradle.kts
   - "**/src/main/java/**/*.java"
+  - src/main/kotlin/**/*.kt
   - "**/application.yml"
   - "**/application.yaml"
   - "**/application.properties"

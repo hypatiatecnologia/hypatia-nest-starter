@@ -31,3 +31,4 @@ Cada arquivo `<rule>.example.md` contém:
 | `08-java-spring.example.md` | `java-spring` + `java-security` | Controller magro, JPA, IDOR |
 | `09-php.example.md` | `php` + `laravel` + `php-security` | Controller magro, FormRequest, Policy, paginação |
 | `10-nestjs-patterns.example.md` | `nestjs-patterns` | Controller magro, DTO class-validator, service + Prisma |
+| `11-remix-fsd.example.md` | `remix-fsd` | Rota magra, action/loader, FSD, Zod, Supabase SSR |

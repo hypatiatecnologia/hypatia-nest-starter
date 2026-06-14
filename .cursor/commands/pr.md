@@ -41,7 +41,7 @@ Preencher **exatamente** estas seções, nesta ordem:
 ```markdown
 ## Título do PR
 
-{tipo(escopo): Assunto — commitlint se existir commitlint.config.js; senão Conventional ≤72 chars}
+{tipo(escopo): Assunto — commitlint se existir commitlint.config.*; senão Conventional ≤72 chars}
 
 ## Resumo
 
@@ -69,7 +69,7 @@ Preencher **exatamente** estas seções, nesta ordem:
 {Anexar se UI ou observabilidade; senão "N/A"}
 ```
 
-**Título:** se existir `commitlint.config.js`, seguir [`commit.md`](./commit.md) e [_shared/commit-message.md](./_shared/commit-message.md) (squash usa o título do PR como mensagem de commit).
+**Título:** se existir `commitlint.config.*`, seguir [`commit.md`](./commit.md) e [_shared/commit-message.md](./_shared/commit-message.md) (squash usa o título do PR como mensagem de commit).
 
 ---
 

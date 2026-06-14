@@ -1,0 +1,30 @@
+---
+description: Limite de escopo por passo — ≤5 arquivos alterados/criados, 1 módulo por chat Agent.
+alwaysApply: false
+---
+
+# Orçamento de contexto por passo
+
+Aplica-se a implementação via **Cursor Agent** a partir de `specs/steps/*-passo-N.md`.
+
+## Limites
+
+- **≤ 5 arquivos alterados ou criados** por passo (contagem só de escrita).
+- **1 módulo ou feature** por chat Agent.
+- Arquivos **apenas lidos** para contexto **não** entram na conta de cinco.
+- **Um passo = um chat novo** — não acumular passos N e N+1 no mesmo contexto.
+
+## Se o escopo estourar
+
+- Parar e pedir ao usuário que gere passo adicional no Antigravity (Modo B).
+- **Não** expandir silenciosamente para “aproveitar o contexto”.
+
+## Spec mestre
+
+- **Não** carregar `specs/<feature>.md` inteira no Cursor se o passo já detalha o escopo.
+- Preferir `@specs/steps/<feature>-passo-N.md` + paths do módulo.
+
+## Referência
+
+- Template: [step-handoff.template.md](../../antigravity/templates/step-handoff.template.md)
+- Autor de passos: [GEMINI.md](../../antigravity/GEMINI.md) (Modo B)

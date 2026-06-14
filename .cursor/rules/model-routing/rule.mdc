@@ -1,0 +1,33 @@
+---
+description: Divisão Antigravity (spec) vs Cursor (código) — não misturar papéis entre ferramentas.
+alwaysApply: false
+---
+
+# Roteamento de modelos e ferramentas
+
+## Divisão de papéis
+
+| Ferramenta | Responsabilidade | Modo |
+|------------|------------------|------|
+| **Antigravity** + [GEMINI.md](../../antigravity/GEMINI.md) | Specs, ADRs, passos em `specs/steps/` | Planning |
+| **Cursor Agent** | Código, testes, migrations | Agent / Composer 2.5 |
+| **Tab / Ask** | Lint, imports, wiring pontual | Inline |
+
+## No Cursor (esta sessão)
+
+- **Implementar** a partir de `specs/steps/*-passo-N.md` ou tarefa explícita do usuário.
+- **Não** reescrever specs mestras em `specs/*.md` salvo pedido explícito.
+- **Não** pedir ao usuário para colar spec inteira — citar `@specs/steps/...` ou seção específica.
+- Modelo sugerido para implementação: **Composer 2.5 Standard** (Fast OFF).
+
+## No Antigravity (outra sessão)
+
+- Modo A: `specs/<feature>.md` — ver [spec.md](../../commands/spec.md)
+- Modo B: `specs/steps/<feature>-passo-N.md` — ver [GEMINI.md](../../antigravity/GEMINI.md)
+- Modelos sugeridos: Gemini 3.5 Flash (passos simples), Gemini 3.1 Pro (specs com domínio)
+
+## Handoff
+
+- Um passo = **um chat Agent novo** no Cursor.
+- Após implementar, retornar resumo ao Antigravity antes do passo N+1.
+- Command: [/handoff](../../commands/handoff.md)

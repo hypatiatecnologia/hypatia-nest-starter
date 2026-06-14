@@ -19,7 +19,7 @@ Only create commits when requested by the user. If unclear, ask first.
 
 ## Mensagem de commit (fonte de verdade)
 
-1. Se existir `commitlint.config.js` na raiz: seguir **integralmente** `~/.cursor/commands/_shared/commit-message.md` — ler o config, inferir ticket da branch, validar com:
+1. Se existir `commitlint.config.*` na raiz: seguir **integralmente** `~/.cursor/commands/_shared/commit-message.md` — ler o config, inferir ticket da branch, validar com:
 
    ```bash
    printf '%s' '<mensagem>' | npx commitlint

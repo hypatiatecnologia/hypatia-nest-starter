@@ -1,24 +1,31 @@
-# Cursor — Configuração Hypatia
+# Cursor — Configuração multi-stack
 
-**IDE padrão do ecossistema Hypatia.** Este diretório é versionado em cada repo e copiado automaticamente ao rodar `npm run create-service` a partir do **hypatia-nest-starter** (fonte canônica para backends NestJS).
+Pack portátil de **rules**, **commands**, **hooks** e **skills** para agentes autônomos no Cursor. Funciona em repos de stacks diferentes — o agente detecta o contexto pelo sinal no projeto.
 
-Inclui rules, commands, hooks de segurança e skills para agentes autônomos. Frontends (Morpheus, Olympus) devem copiar/adaptar a mesma base.
+Consulte também [AGENTS.md](AGENTS.md) para guardrails e detecção de stack.
+
+| Sinal no repo | Rules principais |
+| --- | --- |
+| `react-router.config.ts` / `app/routes/` | [remix-fsd](rules/remix-fsd/rule.mdc), [typescript-react](rules/typescript-react/rule.mdc) |
+| `nest-cli.json` | [nestjs-patterns](rules/nestjs-patterns/rule.mdc), [hypatia-ecosystem](rules/hypatia-ecosystem/rule.mdc) (picker) |
+| `next.config.*` | [typescript-react](rules/typescript-react/rule.mdc) |
 
 ## Estrutura
 
 ```
 .cursor/
-├── AGENTS.md              # Guardrails obrigatórios para agentes autônomos
+├── AGENTS.md              # Guardrails e detecção de stack
 ├── README.md              # Este arquivo
+├── antigravity/           # Pack Gemini/Antigravity (specs, handoff) — ver antigravity/README.md
 ├── hooks.json             # Registro dos hooks de segurança
-├── commands/              # 21 comandos com estrutura _shared/
+├── commands/              # 32 comandos + _shared/
 │   ├── COMMANDS.md        # Índice/roteador
 │   ├── _shared/           # Recursos compartilhados
 │   └── *.md               # Comandos individuais
-├── examples/              # 10 testes de comportamento das rules
-├── hooks/                 # 2 hooks de segurança
-├── rules/                 # 31 rules por stack (incl. nestjs-patterns deste repo)
-├── skills-cursor/         # 13 skills oficiais
+├── examples/              # 11 testes de comportamento das rules
+├── hooks/                 # 2 hooks de segurança + 1 de formatação
+├── rules/                 # 39 rules por stack
+├── skills/                # Skills próprias do projeto (carregadas pelo Cursor)
 └── user-rules/            # Texto canônico para Cursor Settings → Rules for AI
 
 # Na raiz do repositório (fora de .cursor/):
@@ -26,137 +33,144 @@ Inclui rules, commands, hooks de segurança e skills para agentes autônomos. Fr
 └── .cursorindexingignore  # Exclui build/deps da indexação
 ```
 
-## Componentes Principais
+## Componentes principais
 
-### 1. Rules (31 arquivos .mdc)
+### Antigravity (Gemini)
 
-Cobertura completa por stack:
-- **Princípios**: principles, cognitive-complexity, architecture
-- **Linguagens**: typescript, typescript-node, typescript-react, typescript-react-native, go, java-spring, python, php, php7, laravel, symfony, zend-framework
-- **Segurança**: typescript-security, go-security, java-security, php-security, python-security
-- **Padrões**: hypatia-ecosystem, nestjs-patterns (este repo), company-patterns (picker manual), naming-and-files, errors-and-logging, gitflow, openapi-contracts, node-express, tester, linguagem-pt-br
+Pack em [antigravity/](antigravity/) para **Planning** no Google Antigravity: specs (Modo A) e passos de handoff (Modo B). Implementação no Cursor via `/handoff` e rules `model-routing` / `token-budget`.
 
-### 2. Commands (21 arquivos .md)
+Instalação global Antigravity: `./scripts/sync-cursor-config.sh --gemini --force` ou `./cursor-config/install.sh --force --gemini`.
+
+### 1. Rules (39 arquivos `.mdc`)
+
+Cobertura por stack:
+
+- **Princípios (always-on):** principles, cognitive-complexity, architecture, errors-and-logging, naming-and-files, linguagem-pt-br
+- **Front-end:** typescript-react, typescript-react-native, frontend-architecture, tailwind-css, shadcn-ui, **remix-fsd**
+- **Node/TS:** typescript, typescript-node, node-express, company-patterns, nestjs-patterns
+- **Hypatia (picker manual):** hypatia-ecosystem
+- **Outras linguagens:** go, java-spring, python, php, php7, laravel, symfony, zend-framework
+- **Segurança:** typescript-security, go-security, java-security, php-security, python-security
+- **Transversal:** gitflow, tester, openapi-contracts, environment, architect
+
+Índice completo: [rules/RULES.md](rules/RULES.md)
+
+### 2. Commands (32 arquivos `.md`)
 
 | Command | Propósito |
 |---------|-----------|
 | `commit` | Mensagens de commit (commitlint) |
 | `pr` | Rascunho de PR |
 | `revisao-pr` | Lint + testes em diffs pequenos |
+| `rescue` | Recuperar branch/PR com conflitos ou CI |
 | `test` | Testes (escrever + rodar) |
 | `debug` | Debugging de bugs |
 | `refactor` | Refatoração preservando comportamento |
 | `security-review` | Auditoria de segurança |
 | `deps-audit` | Auditoria de dependências e supply chain |
+| `create-component` | Scaffold de componente React |
 | `create-doc` | Documentação técnica |
 | `create-playbook-doc` | Documentação no handbook |
 | `spec` | Specs e ADRs |
+| `handoff` | Implementar um passo em `specs/steps/*-passo-N.md` |
 | `migrate` | Migrations de banco |
 | `contract-check` | Paridade OpenAPI vs implementação |
 | `onboard` | Onboarding de devs |
 | `explain` | Explicar código (read-only) |
+| `ensinar` | Explicar conceitos e padrões |
 | `add-telemetry` | Telemetria (traces/métricas) |
 | `diagnostico` | Diagnóstico + issues/ROI |
 | `readme` | README raiz |
 | `create-readme` | Alias compatível para `readme` |
-| `review-nest-patterns` | Revisão de módulo NestJS (Hypatia starter) |
+| `review-nest-patterns` | Revisão de módulo NestJS |
 | `review-patterns` | Revisão padrões Idea/Express (outros repos) |
+| `review-design-system` | Auditar design system (tokens, hierarquia, trust signals) |
+| `review-design-consistency` | Consistência de design no código (tokens, props, estados) |
+| `review-mobile-ui` | Diagnóstico mobile a partir de screenshots |
+| `audit-ui` | Auditoria completa de UI, a11y e UX (com código) |
+| `ui-developer` | Design review holístico (heurísticas, navegação, referências) |
+| `ux-copy` | Microcopy — CTAs, erros, tooltips, labels, placeholders |
+| `ux-flow` | Mapear jornada, estados e edge cases |
 
-### 3. Skills (13)
+Índice completo: [commands/COMMANDS.md](commands/COMMANDS.md)
+
+### 3. Skills
+
+**Skills do projeto** (versionadas em [`skills/`](skills/), carregadas pelo Cursor):
 
 | Skill | Uso |
 |-------|-----|
-| `babysit` | PR merge-ready (CI, comentários) |
-| `split-to-prs` | Dividir trabalho em vários PRs |
-| `canvas` | Visualizações e artefatos analíticos |
-| `create-rule` | Criar novas regras do Cursor |
-| `create-skill` | Criar novas skills |
-| `create-hook` | Criar novos hooks |
-| `create-subagent` | Criar subagentes especializados |
-| `migrate-to-skills` | Migrar commands para skills |
-| `statusline` | Configurar status line no CLI |
-| `update-cursor-settings` | Modificar settings.json |
-| `update-cli-config` | Configuração de CLI |
-| `shell` | Comandos shell especializados |
-| `sdk` | Uso do Cursor SDK |
+| `review-design-system` | Auditar design system (UI, tokens, conversão) |
 
-### 4. Hooks de Segurança
+**Skills built-in** (instaladas e atualizadas pelo próprio Cursor em `~/.cursor/skills-cursor/` — **não** versionar cópia no repo): `babysit`, `split-to-prs`, `canvas`, `create-rule`, `create-skill`, `create-hook`, `create-subagent`, `migrate-to-skills`, `statusline`, `update-cursor-settings`, `update-cli-config`, `shell`, `sdk`, `automate`, `loop`, `review`, `review-bugbot`, `review-security`.
 
-- **block-rm.sh**: Bloqueia `rm -rf` em paths críticos (`/`, `/home/`, `/Users/`, `.git/`)
-- **redact-prompt.sh**: Bloqueia envio de prompt se detectar padrões de secret (AWS, tokens, JWT, PEM)
+### 4. Hooks
 
-Os hooks são registrados em [`hooks.json`](hooks.json). Em instalação global,
-copie este template para `~/.cursor/`; em instalação por projeto, copie para
-`<repo>/.cursor/`. Os caminhos dos hooks foram definidos para funcionar depois
-da cópia do conteúdo para uma pasta `.cursor/`.
+- **block-rm.sh** (segurança): Nega `rm` recursivo em paths críticos (`/`, home e primeiro nível, `~`, `$HOME`) e qualquer remoção em `.git/`; pede **confirmação** (`ask`) para `rm` recursivo em outros paths
+- **redact-prompt.sh** (segurança): Bloqueia envio de prompt se detectar padrões de secret (AWS, tokens, JWT, PEM); anon keys públicas do Supabase (`role: anon`) são permitidas
+- **format-on-edit.sh** (qualidade): Roda `prettier --write` em arquivos `.ts`/`.tsx` editados pelo agente (mesmo formatador do `lint-staged`); silencioso quando o repo não tem prettier
 
-### 5. Examples (Testes de Comportamento)
+Registrados em [`hooks.json`](hooks.json).
 
-| Arquivo | Rule Testada |
-|---------|--------------|
-| `01-architecture.example.md` | Separação de camadas, DIP |
-| `02-security-ts.example.md` | Validação de entrada, IDOR |
-| `03-cognitive-complexity.example.md` | Funções simples, guard clauses |
-| `04-errors-and-logging.example.md` | DomainError, RFC 7807 |
-| `05-tester.example.md` | Cenários de teste, AAA |
-| `06-gitflow.example.md` | Conventional Commits |
-| `07-go.example.md` | Error handling, queries parametrizadas |
-| `08-java-spring.example.md` | Controller magro, JPA, IDOR |
-| `09-php.example.md` | Controller magro, FormRequest, Policy |
-| `10-nestjs-patterns.example.md` | Controller magro, DTO class-validator, service + Prisma |
+### 5. Examples (11 testes de comportamento)
 
-## Hierarquia de Precedência
+| Arquivo | Rule testada | Foco |
+|---------|--------------|------|
+| `01-architecture.example.md` | architecture | Separação de camadas, DIP |
+| `02-security-ts.example.md` | typescript-security | Validação de entrada, IDOR |
+| `03-cognitive-complexity.example.md` | cognitive-complexity | Funções simples, guard clauses |
+| `04-errors-and-logging.example.md` | errors-and-logging | DomainError, RFC 7807 |
+| `05-tester.example.md` | tester | Cenários de teste, AAA |
+| `06-gitflow.example.md` | gitflow | Conventional Commits |
+| `07-go.example.md` | go + go-security | Error handling, queries parametrizadas |
+| `08-java-spring.example.md` | java-spring + java-security | Controller magro, JPA, IDOR |
+| `09-php.example.md` | php + laravel + php-security | Controller magro, FormRequest, Policy |
+| `10-nestjs-patterns.example.md` | nestjs-patterns | Controller magro, DTO, service + Prisma |
+| `11-remix-fsd.example.md` | remix-fsd | Rota magra, action/loader, FSD, Zod |
+
+## Hierarquia de precedência
+
+Fonte canônica: [rules/_shared/precedence.md](rules/_shared/precedence.md)
 
 1. **`security/*`** da linguagem em contexto
 2. **`architecture`** + **`cognitive-complexity`**
-3. **`nestjs-patterns`** ou **`company-patterns`** (conforme stack)
-4. **Stack específica** (`typescript-node`, `java-spring`, etc.)
-5. **`errors-and-logging`**, **`naming-and-files`**, **`linguagem-pt-br`**
-6. **`openapi-contracts`** quando houver API pública versionada
-7. **Commands** `_shared/commit-message.md`
-8. **Command do repo** sobre command global homônimo
+3. **`hypatia-ecosystem`** — somente repos Pantheon (picker manual)
+4. **`nestjs-patterns`** / **`company-patterns`** / **`remix-fsd`** (conforme stack)
+5. **Stack genérica** (`typescript-node`, `java-spring`, etc.)
+6. **`errors-and-logging`**, **`naming-and-files`**, **`linguagem-pt-br`**
+7. **`openapi-contracts`** quando houver API pública versionada
+8. **Commands** `_shared/commit-message.md`
+9. **Command do repo** sobre command global homônimo
 
 Em conflito: alternativa **mais segura** e com **menos vazamento** de dados internos.
 
 ## Uso
 
-### Cenário A — Global (`~/.cursor`)
+### Portar para outro projeto
 
-As rules e commands ficam ativos em **todos os projetos** abertos no Cursor. Indicado para convenções pessoais ou de time que devem ser universais.
+- Checklists por stack: **[PORTABILITY.md](PORTABILITY.md)**
+- Templates `AGENTS.md`: **[templates/agents/](templates/agents/)**
+- Script: `scripts/sync-cursor-config.sh` na raiz do repo fonte
 
-```bash
-cp -R cursor/.cursor-unified/. ~/.cursor/
-```
+### Por projeto (`.cursor/` na raiz do repo)
 
-> Neste cenário as rules `alwaysApply: true` carregam em qualquer workspace. Rules com `globs` só ativam nos arquivos correspondentes.
-
-### Cenário B — Por projeto (`.cursor/` na raiz do repo)
-
-As rules e commands ficam restritos ao projeto. Indicado quando a configuração é específica de uma stack ou equipe, ou quando você quer sobrescrever parcialmente as regras globais.
-
-```bash
-mkdir -p /seu/projeto/.cursor
-cp -R cursor/.cursor-unified/. /seu/projeto/.cursor/
-```
+Configuração versionada com o código. Indicado quando a stack ou equipe é específica.
 
 > Não use symlink `<repo>/.cursor/rules` → `~/.cursor/rules` — isso duplica as rules `alwaysApply` no contexto.
 
-### Usar Skills
+### Global (`~/.cursor`)
 
-No chat do Cursor, mencione a skill pelo nome para o agente carregar as instruções:
-- `split-to-prs` — dividir trabalho em PRs
-- `babysit` — manter PR merge-ready
-- `canvas` — criar visualizações e artefatos analíticos
+Para convenções pessoais ou **repo remoto** (time): **[GLOBAL-SETUP.md](GLOBAL-SETUP.md)** · onboarding: [../cursor-config/install.sh](../cursor-config/install.sh) · `hooks.global.json` versionado.
 
-### Usar Commands
+### Commands e skills
 
-Digite `/` no chat do Cursor para ver a lista completa de commands disponíveis. Consulte [`commands/COMMANDS.md`](commands/COMMANDS.md) para o guia de quando usar cada um.
+- Digite `/` no chat do Cursor para ver commands disponíveis.
+- Mencione skills pelo nome (`babysit`, `split-to-prs`, `canvas`) para carregar instruções.
 
 ## Manutenção
 
-Para modificar esta configuração:
-1. Siga as restrições em `AGENTS.md`
-2. Mantenha a hierarquia de precedência em `rules/_shared/precedence.md`
-3. Preserve os hooks de segurança em `hooks/`
-4. Mantenha os exemplos de teste comportamental em `examples/`
-
+1. Siga as restrições em [AGENTS.md](AGENTS.md)
+2. Mantenha a hierarquia em [rules/_shared/precedence.md](rules/_shared/precedence.md)
+3. Preserve os hooks em [hooks/](hooks/)
+4. Ao alterar rules, atualize [examples/](examples/) correspondentes
+5. Fonte canônica: `.cursor/` na raiz — **não** duplicar em `.cursor/.cursor/`

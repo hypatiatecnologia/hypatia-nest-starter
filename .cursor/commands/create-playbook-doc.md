@@ -407,7 +407,7 @@ git -C {PLAYBOOK_DIR} add docs/services/{slug}.md mkdocs.yml
 
 > **Exceção aos commands `commit` e `pr`:** este passo **pode** executar `git commit` e `gh pr create` no repositório do playbook — automação pontual do handbook. Os commands [`commit`](./commit.md) e [`pr`](./pr.md) continuam proibidos de executar git/gh nos fluxos normais de desenvolvimento.
 
-Antes do commit, verificar se `{PLAYBOOK_DIR}/commitlint.config.js` existe:
+Antes do commit, verificar se `{PLAYBOOK_DIR}/commitlint.config.*` existe:
 
 - **Com commitlint:** usar `chore(docs): Adiciona documentação do {NomeDoServico}` (sentence-case, assunto ≤50 chars após `: `) + footer `Refs: {ticket}` ou `[NOID]` no subject. Validar: `printf '%s' '<msg>' | npx --prefix {PLAYBOOK_DIR} commitlint`. Não usar tipo `docs:`.
 - **Sem commitlint:** Conventional Commits genérico com tipo `docs:` é aceitável.

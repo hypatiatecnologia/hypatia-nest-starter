@@ -1,0 +1,25 @@
+---
+description: Padrões para adicionar e customizar componentes do Shadcn UI.
+globs:
+  - "app/components/ui/**/*.tsx"
+  - "components/ui/**/*.tsx"
+  - "src/components/ui/**/*.tsx"
+  - "components.json"
+alwaysApply: false
+---
+
+# Shadcn UI
+
+Ativar ao interagir com componentes da biblioteca base de UI (normalmente instalada via Shadcn) ou ao construir formulários e layouts usando componentes Radix primitivos.
+
+> Tailwind & cn(): [tailwind-css](../tailwind-css/rule.mdc)
+
+## Adição de Componentes
+- **Use a CLI Oficial:** Não tente "adivinhar" a implementação de um componente estrutural comum (ex: `Select`, `Dialog`, `Popover`). Use sempre a CLI (ex: `npx shadcn@latest add dialog` ou equivalente local) para importar o código base para a pasta `components/ui/`.
+- **Ícones Padrão:** Por convenção, o Shadcn UI utiliza a biblioteca `lucide-react`. Ao precisar de ícones na interface, priorize o pacote do Lucide.
+
+## Customização e Manutenção
+- **Evite Sobrescrever Primitivas:** Os arquivos dentro de `components/ui/` são de sua posse, porém evite quebrar a acessibilidade nativa garantida pelo Radix UI. Limite-se a alterar propriedades visuais (variáveis no Tailwind, cores no `cn()`) e variantes (`cva`).
+- **Variants (CVA):** Quando um componente base precisar de muitas variações, use `cva` em vez de props booleanas acumuladas ou overrides inline. Nomeie variantes pelo papel no produto, não pela aparência: `variant: "premium"` ou `size: "hero"` — nunca `variant: "blue-large"`. Isso mantém o componente extensível sem expor detalhes visuais na API.
+- **Formulários e Validação:** Shadcn integra perfeitamente com `react-hook-form` e `zod`. Sempre use o componente `<Form />` estrutural gerado pelo Shadcn para prover os contextos visuais de erro automaticamente.
+  - **Em Remix / React Router v7:** preferir `<Form>` do React Router para mutações (ver [remix-fsd](../remix-fsd/rule.mdc)). O wrapper `<Form>` do Shadcn com react-hook-form é opcional — usar apenas se a validação visual client-side justificar a dependência extra.

@@ -1,0 +1,56 @@
+---
+description: Design system — anti-patterns de UI, hierarquia visual, tokens semânticos e CRO em componentes de landing/marketing. Ativar ao trabalhar em seções de página, trust signals ou componentes visuais de conversão.
+globs:
+  - "app/**/*.tsx"
+  - "src/features/**/*.tsx"
+  - "src/components/**/*.tsx"
+alwaysApply: false
+---
+
+# Design System — Qualidade Visual e CRO
+
+> Tokens e `cn()`: [tailwind-css](../tailwind-css/rule.mdc). Componentes base: [shadcn-ui](../shadcn-ui/rule.mdc). Auditoria completa sob demanda: skill `review-design-system`.
+
+## Anti-patterns — corrigir antes de concluir
+
+| Anti-pattern | Impacto | Correção |
+|---|---|---|
+| `opacity-0` até inView em `section[id]` | Seção vazia ao navegar via ancora | Revelar target no evento de nav; ou não esconder com opacity |
+| Card glass sobre hero escuro | Texto ilegível por contraste insuficiente | Card opaco ou sem sobreposição no hero |
+| Mesma mensagem de confiança em 3 formatos | Ruído cognitivo, CRO enfraquecido | Uma mensagem por etapa de funil (ribbon → mid → pre-CTA) |
+| 5 bullets + 4 cards + 3 garantias na mesma seção | Fadiga de leitura, hierarquia achatada | Máx. 2 camadas; mesclar ou realocar itens |
+| `text-xs text-secondary` logo após hero display | Parece rodapé em vez de transição | Valor com `text-primary`; label legível no mínimo `text-primary/80` |
+| `section[id]` sem `scroll-mt` | Título oculto sob header fixo | `scroll-mt-20` em toda `section` com `id` |
+| Copy genérico "Por que nós?" | Não converte | Afirmações específicas, locais e verificáveis |
+
+## Tokens (obrigatório)
+
+- **Proibido** hex cru em componentes — use nomes semânticos: `text-primary`, `bg-surface`, `border`.
+- Todo par surface/text precisa de equivalente dark mode.
+- Focus ring via token `ring` da marca (não `outline` manual).
+- Papéis documentados: primary (CTA) · secondary (link) · accent (sucesso/alerta).
+
+## Tipografia
+
+- Display font somente em h1–h3 ou momentos de marca; body 16px+ em mobile.
+- `leading-relaxed` (≥ 1.5) em blocos de texto longo.
+- Degrau visual claro entre título do hero e títulos de seção (≥ 1 step de tamanho).
+
+## Responsividade
+
+- Trust strip: grid 2×2 mobile → 4 colunas desktop com dividers.
+- Touch targets ≥ 44px em controles de carrossel e nav.
+- `<Image>` (Next) ou `<img>` com `loading="lazy"` e `sizes` (Remix/Vite) — definir `sizes` para responsive.
+
+## Molécula de trust signal
+
+Componente canônico para trust ribbons e barras pré-conversão:
+
+```tsx
+// TrustSignalItem: ícone em círculo muted, valor em font-display font-bold,
+// label com text-primary/80 mínimo em fundos claros.
+// Usar no ribbon pós-hero E no bar pré-CTA — nunca duplicar o mesmo texto nos dois.
+<TrustSignalItem icon={StarIcon} value="4.9★" label="no Google" />
+```
+
+Nunca repita o mesmo `value` + `label` em mais de um slot do funil.

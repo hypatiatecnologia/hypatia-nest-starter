@@ -1,10 +1,11 @@
 ---
 description: Contexto Pantheon Hypatia — microserviços, mensageria, PII só no Hades.
-alwaysApply: true
+alwaysApply: false
 ---
 
 # Hypatia Ecosystem — Pantheon
 
+> **Ativar apenas em repos Pantheon/Hypatia** (picker manual).
 > IDE padrão: **Cursor** (config em `.cursor/`). Starter canônico: `hypatia-nest-starter`.
 > Prosa ao usuário: [linguagem-pt-br](../linguagem-pt-br/rule.mdc). Código e repos: **100% English**.
 

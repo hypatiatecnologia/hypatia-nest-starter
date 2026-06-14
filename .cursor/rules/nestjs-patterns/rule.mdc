@@ -2,10 +2,7 @@
 description: Padrões NestJS deste repo (módulos, DTOs, Prisma, Redis, RabbitMQ). Preferir sobre company-patterns.
 globs:
   - nest-cli.json
-  - src/**/*.ts
   - prisma/schema.prisma
-  - "!src/**/*.test.ts"
-  - "!src/**/*.spec.ts"
 alwaysApply: false
 ---
 

@@ -13,6 +13,7 @@ globs:
   - "src/app/**/*.tsx"
   - "src/pages/**/*.tsx"
   - "src/components/**/*.tsx"
+  - "src/features/**/*.tsx"
 alwaysApply: false
 ---
 
@@ -33,14 +34,14 @@ Ativar para UI em React, Next ou SPA (mobile nativo: [typescript-react-native/ru
 - Preferir Server Components ou camada de dados adequada ao framework; evitar `useEffect` apenas para fetching quando houver alternativa idiomática.
 - `use()` com Suspense quando o padrão do projeto o usar.
 - `'use client'` só onde há interação ou hooks de cliente estritamente necessários.
-- `startTransition` para updates não urgentes; formulários com Server Actions quando o framework aplicar (ex. App Router).
+- `startTransition` para updates não urgentes; formulários com Server Actions **somente em Next.js App Router**; em Remix usar o padrão nativo de `action`/`loader`.
 
 ## Estado
 - Estado de servidor: TanStack Query ou SWR; cliente: `useState`/`useReducer`; estado na URL quando melhorar partilha e bookmarking.
 - Evitar Context global para valores que mudam com alta frequência sem necessidade real.
 
 ## Formulários
-- **React Hook Form** + **Zod** resolver; tipos alinhados ao schema; servidor continua fonte de verdade na validação.
+- **React Hook Form** + **Zod** resolver; tipos alinhados ao schema; servidor continua fonte de verdade na validação. **Em Remix:** se [remix-fsd](mdc:../remix-fsd/rule.mdc) estiver ativa, preferir `<Form>` do React Router para mutações — react-hook-form é opcional para UX client-side.
 
 ## UI / i18n
 - Seguir convenção de styling do projeto (Tailwind, CSS Modules, etc.); não misturar sistemas sem motivo.

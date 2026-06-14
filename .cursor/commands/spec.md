@@ -1,5 +1,5 @@
 ---
-description: Cria spec/ADR em docs/ sem código de produção; use Plan Mode para features grandes.
+description: Cria spec/ADR em specs/ ou docs/ sem código de produção; use Plan Mode para features grandes.
 ---
 
 **Objetivo:** spec completa antes de implementar.

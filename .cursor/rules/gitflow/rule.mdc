@@ -14,7 +14,7 @@ alwaysApply: false
 
 # Git Workflow
 
-> **Commits (mensagem):** seguir integralmente [`~/.cursor/commands/_shared/commit-message.md`](../../commands/_shared/commit-message.md) quando existir `commitlint.config.js` na raiz; senão o fallback do mesmo arquivo. Commands `/commit`, `/revisao-pr` e `/pr` já incorporam isso — **não** duplicar tipos, limites ou prefixos aqui.
+> **Commits (mensagem):** seguir integralmente [`~/.cursor/commands/_shared/commit-message.md`](../../commands/_shared/commit-message.md) quando existir `commitlint.config.*` na raiz; senão o fallback do mesmo arquivo. Commands `/commit`, `/revisao-pr` e `/pr` já incorporam isso — **não** duplicar tipos, limites ou prefixos aqui.
 
 ## Branches
 
@@ -24,7 +24,7 @@ alwaysApply: false
 
 ## Commits
 
-- Se existir `commitlint.config.js` na raiz: ler o arquivo + validar com `npx commitlint` (ver `_shared/commit-message.md`).
+- Se existir `commitlint.config.*` na raiz: ler o arquivo + validar com `npx commitlint` (ver `_shared/commit-message.md`).
 - Se **não** existir commitlint: Conventional Commits genérico (fallback em `_shared/commit-message.md`).
 - **Nunca** "WIP", "fix stuff", "temp".
 

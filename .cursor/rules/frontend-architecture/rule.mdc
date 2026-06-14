@@ -1,0 +1,33 @@
+---
+description: Padrões arquiteturais para o Front-end (React/Next). Separação de responsabilidades, fetching e estado.
+globs:
+  - "components/**/*.tsx"
+  - "src/components/**/*.tsx"
+  - "app/**/*.tsx"
+  - "pages/**/*.tsx"
+  - "src/app/**/*.tsx"
+  - "src/pages/**/*.tsx"
+alwaysApply: false
+---
+
+# Arquitetura Front-end (React)
+
+Ativar ao desenvolver componentes de UI e rotas/páginas no front-end. Complementa as diretrizes globais do [typescript-react](../typescript-react/rule.mdc).
+
+> Princípios gerais: [principles](../principles/rule.mdc), [architecture](../architecture/rule.mdc)
+> Estilo Visual (Tailwind): [tailwind-css](../tailwind-css/rule.mdc)
+
+## Separação de Componentes (Container / Presenter)
+- **Componentes Visuais (Dumb/Presenter):** Ficam em pastas como `components/ui/` ou afins. São puros, recebem dados exclusivamente via *props*, disparam *callbacks* (ex: `onClick`) e **não** gerenciam estado global ou fazem *data fetching*.
+- **Containers/Páginas (Smart):** Ficam em `app/`, `pages/` ou `components/containers/`. São responsáveis por gerenciar o estado global, chamar APIs (via hooks de query) e passar os dados mastigados para os componentes visuais.
+- **Acoplamento Limitado:** Nunca acople um componente puramente visual a um provedor específico de API externo. Se um `UserAvatar` precisa de dados do usuário, ele deve receber `userImage` por prop, não chamar `useCurrentUser()`.
+
+## Data Fetching e Estado
+- **Estado de Servidor (Server State):** Use bibliotecas apropriadas (TanStack Query, SWR, Next Server Components). Nunca implemente requisições diretas via `fetch` dentro de um `useEffect` puro sem tratamento rigído de concorrência e race-conditions.
+- **Estado Global:** Limite o uso (ex: Zustand, Context API) apenas ao estritamente necessário (ex: Tema, Auth, preferências do usuário). Não use estado global para propriedades inerentes a apenas uma visualização.
+- **Estado Local:** Use `useState` ou `useReducer` próximo a onde é necessário. Evite mais de 3-4 `useState` no mesmo componente; se acontecer, avalie `useReducer` ou extração para um custom hook.
+
+## Clean Code no Front-end
+- **Retorno Antecipado (Early Return):** Para cenários de erro ou loading, retorne a interface de falha cedo.
+- **Regra do `useEffect`:** Se você precisar de um `useEffect` para sincronizar dois estados locais, você provavelmente está modelando os dados errado. Calcule valores derivados durante o render.
+- **Tamanho dos Arquivos:** Componentes devem idealmente ter menos de 150-200 linhas de código útil. Se passar disso, fragmente a UI em sub-componentes.

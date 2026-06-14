@@ -6,6 +6,8 @@ description: Adiciona traces/métricas/logs na borda infra; confirma antes de in
 
 **Quando usar:** feature nova ou gap de observabilidade.
 
+**Não usar quando:** só correção de log pontual → editar direto seguindo [errors-and-logging](../rules/errors-and-logging/rule.mdc); diagnóstico de bug → [`debug`](./debug.md).
+
 **Done when:** spans/logs/métricas documentados; sem PII em telemetria.
 
 Meta: [_shared/command-skeleton.md](./_shared/command-skeleton.md)

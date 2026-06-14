@@ -1,7 +1,7 @@
 # Exemplo 08 — java-spring/rule.mdc + java-security.mdc
 # Constructor injection, @Transactional, @ControllerAdvice, paginação obrigatória
 
-**Rules ativas:** `java-spring/rule.mdc` (auto-attach em Maven/Gradle/Spring), `java-security.mdc` (auto-attach via `**/*.java`; Kotlin backend exige picker para evitar falso positivo Android/KMP)
+**Rules ativas:** `java-spring/rule.mdc` (Maven/Gradle/Spring + `src/main/java` / `src/main/kotlin` na raiz), `java-security.mdc` (`**/*.java` + `src/main/kotlin/**/*.kt`; Android `app/src/main/kotlin` e KMP → picker)
 
 ---
 

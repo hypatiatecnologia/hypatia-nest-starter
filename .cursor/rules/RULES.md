@@ -1,8 +1,10 @@
-# Índice de rules (`~/.cursor/rules`)
+# Índice de rules (`.cursor/rules`)
 
 Roteador para escolher a rule certa. **Precedência detalhada:** [_shared/precedence.md](./_shared/precedence.md).
 
 **Importante:** não crie symlink `<repo>/.cursor/rules` → `~/.cursor/rules` (duplica rules no contexto).
+
+**Reutilizar em outro repo:** [PORTABILITY.md](../PORTABILITY.md).
 
 ## Sempre ativas (`alwaysApply: true`)
 
@@ -14,7 +16,7 @@ Roteador para escolher a rule certa. **Precedência detalhada:** [_shared/preced
 | [errors-and-logging](./errors-and-logging/rule.mdc) | Erros estruturados, logs, sem catch silencioso |
 | [naming-and-files](./naming-and-files/rule.mdc) | Casing, rotas kebab-case |
 | [linguagem-pt-br](./linguagem-pt-br/rule.mdc) | Prosa ao usuário em pt-BR |
-| [hypatia-ecosystem](./hypatia-ecosystem/rule.mdc) | Pantheon, RabbitMQ, PII só no Hades, Cursor como IDE padrão |
+| [handoff](./handoff/rule.mdc) | Resumo de sessão e reset de chat no Cursor |
 
 ## Sob demanda (globs ou picker)
 
@@ -23,20 +25,25 @@ Roteador para escolher a rule certa. **Precedência detalhada:** [_shared/preced
 | [gitflow](./gitflow/rule.mdc) | `commitlint.config.{js,cjs,mjs,ts}`, `.husky/**`, `.github/**`, `.gitlab-ci.yml` | Commits: usar `/commit` + [_shared/commit-message.md](../commands/_shared/commit-message.md) |
 | [typescript](./typescript/rule.mdc) | `**/*.ts`, `**/*.tsx` | — |
 | [typescript-security](./security/typescript-security.mdc) | `**/*.ts`, `**/*.tsx` | — |
-| [nestjs-patterns](./nestjs-patterns/rule.mdc) | `nest-cli.json`, `src/**/*.ts`, `prisma/schema.prisma` (exceto testes) | Projetos Idea/Express |
-| [company-patterns](./company-patterns/rule.mdc) | **Picker manual** (sem glob neste repo) | NestJS (use `nestjs-patterns`), Fastify greenfield, frontend, PHP |
-| [node-express](./node-express/rule.mdc) | `app.ts`, `routes/**`, `middleware/**` | Nest/Fastify novo; Yup+company-patterns já cobrem validação |
+| [frontend-architecture](./frontend-architecture/rule.mdc) | `components/**`, `app/**`, `pages/**` | Backend API / Node |
+| [tailwind-css](./tailwind-css/rule.mdc) | `**/*.tsx`, `tailwind.config.*`, `**/*.css` | Projetos sem Tailwind |
+| [shadcn-ui](./shadcn-ui/rule.mdc) | `app/components/ui/**`, `components/ui/**`, `src/components/ui/**`, `components.json` | Projetos sem Shadcn |
+| [design-system](./design-system/rule.mdc) | `app/**/*.tsx`, `src/features/**/*.tsx`, `src/components/**/*.tsx` | Rotas sem UI de marketing/landing |
+| [remix-fsd](./remix-fsd/rule.mdc) | `react-router.config.ts`, `app/routes/**`, `src/features/**`, `src/lib/supabase/**`, `src/db/**` | Next.js App Router, NestJS |
+| [nestjs-patterns](./nestjs-patterns/rule.mdc) | `nest-cli.json`, `prisma/schema.prisma` | Repos sem NestJS |
+| [company-patterns](./company-patterns/rule.mdc) | **Picker manual** (sem globs no `.mdc`) | Fastify greenfield, frontend, PHP |
+| [node-express](./node-express/rule.mdc) | `app.ts`, `server.ts`, `**/express/**`, `**/middleware/**` | Nest/Fastify novo; Yup+company-patterns já cobrem validação |
 | [php](./php/rule.mdc) | `**/*.php` | Projeto PHP 7.x (use `php7`) |
 | [php-security](./security/php-security.mdc) | `**/*.php` | — |
 | [php7](./php7/rule.mdc) | **Picker manual** | PHP 8+ (use `php`) |
 | [zend-framework](./zend-framework/rule.mdc) | `module.config.php`, `Module.php` | Fora de ZF/Laminas legado |
 | [go](./go/rule.mdc) | `**/*.go` | — |
 | [go-security](./security/go-security.mdc) | `**/*.go` | — |
-| [java-security](./security/java-security.mdc) | `**/*.java` | Kotlin Android/KMP; Kotlin backend só via picker/stack JVM |
+| [java-security](./security/java-security.mdc) | `**/*.java`, `src/main/kotlin/**/*.kt` | Android (`app/src/main/kotlin`), KMP — picker |
 | [java-spring](./java-spring/rule.mdc) | `pom.xml`, `build.gradle*`, `src/main/java/**`, `application.*` | Node/PHP sem JVM |
 | [python](./python/rule.mdc) | `**/*.py` | — |
 | [python-security](./security/python-security.mdc) | `**/*.py` | — |
-| [typescript-react](./typescript-react/rule.mdc) | `next.config.*`, `vite.config.*`, `app/**/*.tsx`, `pages/**/*.tsx`, `components/**/*.tsx` | React Native |
+| [typescript-react](./typescript-react/rule.mdc) | `next.config.*`, `vite.config.*`, `app/**/*.tsx`, `pages/**/*.tsx`, `components/**/*.tsx`, `src/features/**/*.tsx` | React Native |
 | [laravel](./laravel/rule.mdc) | `artisan`, `app/Http/**`, `app/Models/**`, `routes/{api,web}.php` | Symfony ou PHP sem Laravel |
 | [symfony](./symfony/rule.mdc) | `symfony.lock`, `config/services.yaml`, `src/Controller/**`, `src/Entity/**` | Laravel ou ZF legado |
 | [tester](./tester/rule.mdc) | `*.test.*`, `*.spec.*`, `*_test.*`, `__tests__/**` | Tarefa sem teste |
@@ -47,25 +54,27 @@ Roteador para escolher a rule certa. **Precedência detalhada:** [_shared/preced
 
 | Situação | Rule |
 |----------|------|
-| NestJS (Hypatia starter / Pantheon) | [hypatia-ecosystem](./hypatia-ecosystem/rule.mdc) + [nestjs-patterns](./nestjs-patterns/rule.mdc) + [typescript-node](./typescript-node/rule.mdc) |
-| NestJS (hades-vault / Hades) | [nestjs-patterns](./nestjs-patterns/rule.mdc) + [typescript-node](./typescript-node/rule.mdc) |
-| Node novo (Fastify/Nest genérico, Zod) | [typescript-node](./typescript-node/rule.mdc) |
-| Express + Yup legado | [company-patterns](./company-patterns/rule.mdc) + [node-express](./node-express/rule.mdc) — **não** `typescript-node` |
+| Repos Pantheon/Hypatia | [hypatia-ecosystem](./hypatia-ecosystem/rule.mdc) |
+| Remix / React Router v7 + FSD | [remix-fsd](./remix-fsd/rule.mdc) |
+| Node novo (Fastify/Nest, Zod) | [typescript-node](./typescript-node/rule.mdc) |
+| Express + Yup legado (Idea) | [company-patterns](./company-patterns/rule.mdc) + [node-express](./node-express/rule.mdc) — **não** `typescript-node` |
 | React web sem arquivo coberto por glob | [typescript-react](./typescript-react/rule.mdc) |
 | React Native | [typescript-react-native](./typescript-react-native/rule.mdc) |
-| Kotlin backend sem `.java` | [java-spring](./java-spring/rule.mdc) + [java-security](./security/java-security.mdc) |
+| Kotlin + Spring (backend JVM) | [java-spring](./java-spring/rule.mdc) + [java-security](./security/java-security.mdc) — auto em `src/main/kotlin/`; template [kotlin-spring.md](../templates/agents/kotlin-spring.md) |
+| Kotlin Android / Compose / KMP | `java-security` (picker) — template [kotlin-android.md](../templates/agents/kotlin-android.md) |
 | Spec/ADR sem código | [architect](./architect/rule.mdc) |
+| Handoff `specs/steps/*-passo-N.md` | [model-routing](./model-routing/rule.mdc) + [token-budget](./token-budget/rule.mdc) — citar com `@` no prompt |
 
 ## Rules vs commands
 
 | Tarefa | Preferir |
 |--------|----------|
 | Mensagem de commit | Command [`/commit`](../commands/commit.md) → [_shared/commit-message.md](../commands/_shared/commit-message.md) |
-| Revisão módulo NestJS (Hypatia / starter) | [`/review-nest-patterns`](../commands/review-nest-patterns.md) |
-| Revisão módulo Idea/Express | Command repo `review-company-patterns` ou global `review-patterns` |
+| Revisão módulo TS backend | Command repo `review-company-patterns` ou global `review-patterns` |
 | Auditoria de dependências | [`/deps-audit`](../commands/deps-audit.md) |
 | Contrato OpenAPI vs código | [`/contract-check`](../commands/contract-check.md) |
 | Rascunho de PR | [`/pr`](../commands/pr.md) |
+| Passo de implementação (Antigravity) | [`/handoff`](../commands/handoff.md) |
 | Índice de commands | [COMMANDS.md](../commands/COMMANDS.md) |
 
 ## Fragmentos compartilhados (`rules/_shared/`)
@@ -75,7 +84,7 @@ Roteador para escolher a rule certa. **Precedência detalhada:** [_shared/preced
 | [precedence.md](./_shared/precedence.md) | Ordem security → architecture → company-patterns → stack |
 | [company-patterns-transaction.md](./_shared/company-patterns-transaction.md) | Exemplo de transação BaseRepository |
 
-## Exemplos (`~/.cursor/examples/`)
+## Exemplos (`.cursor/examples/`)
 
 | Arquivo | Rule testada | Foco |
 |---------|--------------|------|
@@ -89,6 +98,7 @@ Roteador para escolher a rule certa. **Precedência detalhada:** [_shared/preced
 | [08-java-spring.example.md](../examples/08-java-spring.example.md) | java-spring + java-security | Controller magro, JPA, IDOR |
 | [09-php.example.md](../examples/09-php.example.md) | php + laravel + php-security | Controller magro, FormRequest, Policy |
 | [10-nestjs-patterns.example.md](../examples/10-nestjs-patterns.example.md) | nestjs-patterns | Controller magro, DTO class-validator, service + Prisma |
+| [11-remix-fsd.example.md](../examples/11-remix-fsd.example.md) | remix-fsd | Rota magra, action/loader, FSD, Zod, Supabase SSR |
 
 ## User rule (Cursor Settings)
 

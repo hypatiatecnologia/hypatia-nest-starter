@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# beforeShellExecution hook: bloqueia rm -rf em paths críticos
+# beforeShellExecution hook: bloqueia rm recursivo em paths críticos
+# e pede confirmação para rm recursivo em qualquer outro path.
 input="$(cat)"
 
 command="$input"
@@ -17,19 +18,28 @@ else:
   fi
 fi
 
-# Paths críticos que nunca devem ser removidos pelo agente
-CRITICAL_PATHS='/|/home/|/Users/|~|\.git/|\$HOME'
+deny() {
+  printf '{"permission":"deny","user_message":"%s","agent_message":"%s"}\n' "$1" "$2"
+  exit 0
+}
 
-# Detecta rm -rf (ou variantes) em paths críticos
-if printf '%s' "$command" | grep -E "rm[[:space:]]+-[rRf]+.*($CRITICAL_PATHS)" > /dev/null; then
-  printf '%s\n' '{"permission":"deny","user_message":"Bloqueado: rm -rf em path crítico detectado. Requer confirmação humana.","agent_message":"O hook block-rm impediu uma remoção recursiva em path crítico."}'
+# Qualquer remoção dentro de .git/ é sempre negada
+if printf '%s' "$command" | grep -E '(^|[;&|[:space:]])rm[[:space:]][^;&|]*\.git(/|[[:space:]]|$)' > /dev/null; then
+  deny "Bloqueado: remoção em diretório .git/ detectada." "O hook block-rm impediu uma remoção dentro de .git/."
+fi
+
+# Detecta rm recursivo: -r/-R em flags curtas (qualquer ordem) ou --recursive
+RM_RECURSIVE='(^|[;&|[:space:]])rm[[:space:]]+(-[A-Za-z]*[rR][A-Za-z]*[[:space:]]|--recursive([[:space:]=]|$)|(-[A-Za-z]+[[:space:]]+)*-[A-Za-z]*[rR])'
+if ! printf '%s' "$command" | grep -E "$RM_RECURSIVE" > /dev/null; then
+  printf '%s\n' '{"permission":"allow"}'
   exit 0
 fi
 
-# Detecta rm sem -i em arquivos versionados (proteção adicional)
-if printf '%s' "$command" | grep -E 'rm[[:space:]]+.*\.git/' > /dev/null; then
-  printf '%s\n' '{"permission":"deny","user_message":"Bloqueado: remoção em diretório .git/ detectada.","agent_message":"O hook block-rm impediu uma remoção dentro de .git/."}'
-  exit 0
+# Paths críticos ancorados: raiz, home (e primeiro nível), ~, $HOME
+CRITICAL_PATHS='(^|[[:space:]"'"'"'])(/|/home(/[^/[:space:]"'"'"']+)?/?|/Users(/[^/[:space:]"'"'"']+)?/?|~(/[^/[:space:]"'"'"']+)?/?|\$HOME(/[^/[:space:]"'"'"']+)?/?)(["'"'"'[:space:]]|$)'
+if printf '%s' "$command" | grep -E "$CRITICAL_PATHS" > /dev/null; then
+  deny "Bloqueado: rm recursivo em path crítico detectado. Requer confirmação humana." "O hook block-rm impediu uma remoção recursiva em path crítico (raiz, home, ~ ou \$HOME)."
 fi
 
-printf '%s\n' '{"permission":"allow"}'
+# rm recursivo em path não crítico: pedir confirmação ao usuário
+printf '%s\n' '{"permission":"ask","user_message":"rm recursivo detectado — confirme a remoção.","agent_message":"O hook block-rm exigiu confirmação do usuário para remoção recursiva."}'
