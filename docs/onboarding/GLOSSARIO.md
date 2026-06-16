@@ -4,6 +4,8 @@ Definições dos termos usados no starter e no ecossistema Pantheon.
 
 ## Ecossistema Pantheon
 
+> Por que nomes de deuses? Ver [ADR 0002: Nomenclatura Pantheon](../adr/0002-pantheon-naming.md).
+
 | Termo | Definição |
 | --- | --- |
 | **Pantheon** | Conjunto de microserviços Hypatia (Cerberus, Argus, Hades, Athena, Midas, Hermes, Nemesis). |
