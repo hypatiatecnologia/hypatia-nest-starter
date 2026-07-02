@@ -5,6 +5,8 @@ on:
   push:
     branches: [main]
 
+# Actions are pinned by commit SHA (tag in the comment) — tags are mutable
+# and a compromised tag would run arbitrary code with repo access.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -15,18 +17,20 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: .nvmrc
           cache: npm
 
-      - run: npm ci
+      # --ignore-scripts blocks transitive postinstall scripts (npm's #1
+      # supply-chain vector); prisma generate runs explicitly below.
+      - run: npm ci --ignore-scripts
       - run: npx prisma generate
       - run: npm run lint:ci
       - run: npm run type-check
-      - run: npm test
+      - run: npm run test:cov
       - run: npm run build
 
   security:
@@ -34,18 +38,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: .nvmrc
           cache: npm
 
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npm audit --audit-level=high
 
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           severity: HIGH,CRITICAL
@@ -54,7 +58,21 @@ jobs:
       - name: Gitleaks
         env:
           GITLEAKS_VERSION: '8.24.2'
+          GITLEAKS_SHA256: 'fa0500f6b7e41d28791ebc680f5dd9899cd42b58629218a5f041efa899151a8e'
         run: |
-          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz -C /tmp
+          curl -sSfL -o /tmp/gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  /tmp/gitleaks.tar.gz" | sha256sum -c -
+          tar -xz -C /tmp -f /tmp/gitleaks.tar.gz
           chmod +x /tmp/gitleaks
           /tmp/gitleaks detect --source . --config .gitleaks.toml --verbose --redact
+
+  docker:
+    name: docker build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      # Build only (no push) — catches Dockerfile regressions before deploy.
+      - run: docker build --target runner -t hypatia-nest-starter:ci .

@@ -38,7 +38,7 @@ npm run create-service -- hermes-worker worker
 | API | http://localhost:3000 |
 | Swagger | http://localhost:3000/docs/api |
 | Health | http://localhost:3000/health |
-| RabbitMQ UI | http://localhost:15672 (guest/guest) |
+| RabbitMQ UI | http://localhost:15672 (hypatia / hypatia-rabbitmq-dev — ver RABBITMQ_USER/RABBITMQ_PASSWORD no .env) |
 
 ## Archetypes
 
@@ -141,6 +141,7 @@ Crie o arquivo em `src/modules/orders/orders.module.ts`; ele será descoberto au
 ```bash
 curl -X POST http://localhost:3000/example/events \
   -H 'Content-Type: application/json' \
+  -H 'x-api-key: change-me-local-dev' \
   -H 'x-correlation-id: guia-rapido-1' \
   -d '{"type":"example.created","payload":{"message":"hello"}}'
 ```

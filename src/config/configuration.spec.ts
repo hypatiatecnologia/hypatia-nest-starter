@@ -6,7 +6,7 @@ const validEnv: Record<string, string> = {
   SERVICE_NAME: 'test-service',
   PORT: '3000',
   NODE_ENV: 'test',
-  RABBITMQ_URL: 'amqp://guest:guest@localhost:5672',
+  RABBITMQ_URL: 'amqp://hypatia:hypatia-rabbitmq-dev@localhost:5672',
   RABBITMQ_MODE: 'off',
   RABBITMQ_EXCHANGE: 'hypatia.events',
   RABBITMQ_DLX_EXCHANGE: 'hypatia.events.dlx',

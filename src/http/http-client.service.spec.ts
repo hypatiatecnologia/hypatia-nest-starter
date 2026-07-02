@@ -119,5 +119,32 @@ describe('HttpClientService', () => {
       await expect(promise).resolves.toEqual({ recovered: true });
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
+
+    it('does NOT retry POST by default (non-idempotent — effect may have applied)', async () => {
+      global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 502 });
+      const service = new HttpClientService();
+
+      const promise = service.post('https://api.example.com/orders', { body: { id: 1 } });
+      promise.catch(() => undefined);
+      await jest.runAllTimersAsync();
+
+      await expect(promise).rejects.toBeInstanceOf(HttpClientError);
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries POST when explicitly opted in via retry: true', async () => {
+      global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 502 });
+      const service = new HttpClientService();
+
+      const promise = service.post('https://api.example.com/orders', {
+        body: { id: 1 },
+        retry: true,
+      });
+      promise.catch(() => undefined);
+      await jest.runAllTimersAsync();
+
+      await expect(promise).rejects.toBeInstanceOf(HttpClientError);
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+    });
   });
 });

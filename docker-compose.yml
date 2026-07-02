@@ -97,6 +97,9 @@ services:
     restart: unless-stopped
     env_file:
       - .env
+    environment:
+      # Fixed in-container port; the host side of the mapping follows $PORT.
+      PORT: 3000
     ports:
       - '${PORT:-3000}:3000'
     depends_on:

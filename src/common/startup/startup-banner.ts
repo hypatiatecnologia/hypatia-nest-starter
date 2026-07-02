@@ -21,7 +21,7 @@ function boxedLine(content: string, width: number): string {
 
 /** Multiline ASCII banner for local dev terminals. */
 export function buildStartupBanner(input: StartupBannerInput): string {
-  const title = `HYPIATIA — ${input.serviceName}`;
+  const title = `HYPATIA — ${input.serviceName}`;
   const details = [
     `API      ${input.baseUrl}`,
     `Swagger  ${input.baseUrl}/docs/api`,

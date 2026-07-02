@@ -10,11 +10,13 @@ const baseConfig: AppConfig = {
   serviceName: 'hypatia-test',
   databaseUrl: 'postgresql://hypatia:hypatia@localhost:5432/hypatia',
   redisUrl: 'redis://localhost:6379',
-  rabbitmqUrl: 'amqp://guest:guest@localhost:5672',
+  rabbitmqUrl: 'amqp://hypatia:hypatia-rabbitmq-dev@localhost:5672',
   rabbitmqMode: 'off',
   rabbitmqExchange: 'hypatia.events',
   rabbitmqDlxExchange: 'hypatia.events.dlx',
   rabbitmqQueue: 'hypatia-test.events',
+  throttleTtlMs: 60000,
+  throttleLimit: 100,
 };
 
 describe('ExampleModule', () => {

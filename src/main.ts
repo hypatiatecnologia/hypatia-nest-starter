@@ -1,11 +1,9 @@
-import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from 'nestjs-pino';
-import helmet from 'helmet';
 import { AppModule } from './app.module';
-import { correlationMiddleware } from './common/correlation/correlation.middleware';
+import { configureApp } from './app.setup';
 import { formatStartupLogMessage, printStartupBanner } from './common/startup/startup-banner';
 import { AppConfig } from './config/configuration';
 
@@ -27,23 +25,22 @@ async function bootstrap() {
   // Graceful shutdown on SIGTERM/SIGINT (Docker, k8s rolling deploys).
   app.enableShutdownHooks();
 
-  // Correlation id before pino so access logs include the same id as handlers.
-  app.use(correlationMiddleware);
+  // Correlation middleware, helmet, and validation — shared with e2e tests.
+  configureApp(app);
 
   // Structured JSON logs via pino; sensitive fields are redacted in AppModule.
   app.useLogger(app.get(Logger));
 
-  // Security headers (CSP, HSTS, etc.).
-  app.use(helmet());
-
-  // Global validation: strips unknown fields, coerces types, rejects extra properties.
-  app.useGlobalPipes(
-    new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
-  );
-
   const config = app.get(ConfigService<AppConfig, true>);
   const serviceName = config.get('serviceName', { infer: true });
   const nodeEnv = config.get('nodeEnv', { infer: true });
+
+  // Behind Cerberus/reverse proxy: trust X-Forwarded-* so req.ip (throttling,
+  // logs) reflects the real client. See TRUST_PROXY in configuration.ts.
+  const trustProxy = config.get('trustProxy', { infer: true });
+  if (trustProxy !== undefined) {
+    app.getHttpAdapter().getInstance().set('trust proxy', trustProxy);
+  }
 
   if (nodeEnv !== 'production') {
     const swagger = new DocumentBuilder()

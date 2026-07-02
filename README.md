@@ -2,7 +2,7 @@
 
 Boilerplate for Hypatia microservices: **NestJS 10**, **PostgreSQL** (Prisma), **Redis**, and **RabbitMQ** (optional publisher or consumer).
 
-Extracted from [hades-vault](https://github.com/hypatia/data-vault) (Hades) infrastructure patterns. Use this repo to bootstrap new Pantheon services — not as a fork of the LGPD vault.
+Extracted from the `hades-vault` (Hades) infrastructure patterns. Use this repo to bootstrap new Pantheon services — not as a fork of the LGPD vault.
 
 ## Archetypes
 
@@ -122,7 +122,7 @@ Implementation: `src/common/correlation/` · wired in `main.ts` and `app.module.
 
 | Tool | Version / notes |
 | --- | --- |
-| Node.js | 20 LTS — `nvm use` (see [.nvmrc](.nvmrc)) |
+| Node.js | 22 LTS — `nvm use` (see [.nvmrc](.nvmrc)) |
 | Docker | Docker Compose v2 — Postgres, Redis, RabbitMQ for local dev |
 | Ports free | 3000 (API), 5432, 6379, 5672, 15672 |
 
@@ -161,8 +161,8 @@ curl -s http://localhost:3000/health | head -c 200
 
 - API: http://localhost:3000
 - Swagger: http://localhost:3000/docs/api
-- Health: http://localhost:3000/health
-- RabbitMQ UI: http://localhost:15672 (guest/guest)
+- Health: http://localhost:3000/health (liveness: `/health/live` · readiness: `/health/ready`)
+- RabbitMQ UI: http://localhost:15672 (hypatia / hypatia-rabbitmq-dev — ver RABBITMQ_USER/RABBITMQ_PASSWORD no .env)
 
 Stuck? See [docs/onboarding/TROUBLESHOOTING.md](docs/onboarding/TROUBLESHOOTING.md).
 
@@ -233,10 +233,15 @@ npm run start:dev
 **Terminal 2 — api:**
 
 ```bash
+# x-api-key must match INTERNAL_API_KEY in the api service's .env
 curl -X POST http://localhost:3000/example/events \
   -H 'Content-Type: application/json' \
+  -H 'x-api-key: change-me-local-dev' \
   -d '{"type":"example.created","payload":{"message":"hello"}}'
 ```
+
+> All routes require auth by default (`x-api-key` or `Authorization: Bearer <Argus JWT>`).
+> Only routes marked `@Public()` — like `/health` — skip it.
 
 ## Feature modules (auto-discovery)
 
@@ -277,10 +282,9 @@ src/
 | `npm run start:dev` | Dev server with watch |
 | `npm run create-service` | Scaffold new repo from starter |
 | `npm run prisma:migrate` | Create migration (dev) |
-| `npm run lint:ci` | ESLint |
+| `npm run lint:ci` | ESLint (src + test) |
 | `npm test` | Unit + e2e tests |
-| `npm run test:ci` | Related tests only (lint-staged / CI) |
-| `npm run test:cov` | Tests with coverage report |
+| `npm run test:cov` | Tests with coverage report (thresholds enforced in CI) |
 
 ## Related repos
 

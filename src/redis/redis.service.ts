@@ -27,6 +27,20 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * Atomic set-if-absent (SET NX EX). Returns true when this caller acquired
+   * the key — the primitive behind idempotency claims and simple locks.
+   */
+  async setNx(key: string, value: string, ttlSeconds: number): Promise<boolean> {
+    const result = await this.client.set(key, value, 'EX', ttlSeconds, 'NX');
+    return result === 'OK';
+  }
+
+  /** Connectivity probe for readiness checks. */
+  async ping(): Promise<void> {
+    await this.client.ping();
+  }
+
   async get(key: string): Promise<string | null> {
     return this.client.get(key);
   }

@@ -7,19 +7,27 @@ export interface HttpClientRequestOptions {
   headers?: Record<string, string>;
   body?: unknown;
   timeoutMs?: number;
+  /**
+   * Opt into retries for non-idempotent requests (POST). Only safe when the
+   * upstream endpoint deduplicates (e.g. accepts an idempotency key) —
+   * a retried POST that DID reach the server applies its effect twice.
+   */
+  retry?: boolean;
 }
 
 /**
  * Outbound HTTP client that propagates x-correlation-id to upstream services.
  * Uses native fetch (Node 20+) — no extra dependency.
  *
- * Retries up to MAX_ATTEMPTS times on transient server errors (429, 502, 503, 504)
- * with exponential backoff starting at 200ms.
+ * Retries idempotent methods (GET, PUT, DELETE) up to MAX_ATTEMPTS times on
+ * transient errors (429, 502, 503, 504) with jittered exponential backoff.
+ * POST is never retried unless `options.retry` is set explicitly.
  */
 @Injectable()
 export class HttpClientService {
   private static readonly MAX_ATTEMPTS = 3;
   private static readonly RETRYABLE_STATUSES = new Set([429, 502, 503, 504]);
+  private static readonly IDEMPOTENT_METHODS = new Set(['GET', 'PUT', 'DELETE']);
 
   async get<T>(url: string, options: HttpClientRequestOptions = {}): Promise<T> {
     return this.requestWithRetry<T>('GET', url, options);
@@ -46,14 +54,19 @@ export class HttpClientService {
     try {
       return await this.executeRequest<T>(method, url, options);
     } catch (error) {
+      const methodIsRetryable =
+        options.retry ?? HttpClientService.IDEMPOTENT_METHODS.has(method.toUpperCase());
       const shouldRetry =
+        methodIsRetryable &&
         error instanceof HttpClientError &&
         HttpClientService.RETRYABLE_STATUSES.has(error.statusCode) &&
         attempt < HttpClientService.MAX_ATTEMPTS;
 
       if (!shouldRetry) throw error;
 
-      await this.delay(100 * 2 ** attempt);
+      // Full jitter: spreads concurrent retries instead of synchronizing them.
+      // eslint-disable-next-line sonarjs/pseudo-random -- jitter, not security
+      await this.delay(Math.random() * 100 * 2 ** attempt);
       return this.requestWithRetry<T>(method, url, options, attempt + 1);
     }
   }

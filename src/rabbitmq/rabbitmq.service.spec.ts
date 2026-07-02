@@ -34,15 +34,15 @@ function buildRawMessage(payload: unknown): ConsumeMessage {
 
 describe('RabbitMqService', () => {
   let service: RabbitMqService;
-  let redis: { exists: jest.Mock; set: jest.Mock };
+  let redis: { setNx: jest.Mock; del: jest.Mock };
 
   async function createModule(rabbitmqMode: string) {
     process.env.DATABASE_URL = TEST_DATABASE_URL;
     process.env.RABBITMQ_MODE = rabbitmqMode;
 
     redis = {
-      exists: jest.fn().mockResolvedValue(false),
-      set: jest.fn().mockResolvedValue(undefined),
+      setNx: jest.fn().mockResolvedValue(true),
+      del: jest.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -137,12 +137,12 @@ describe('RabbitMqService', () => {
       ).handleMessage(buildMessage(event));
     }
 
-    it('invokes the handler, stores dedupe key, and acks the message', async () => {
+    it('claims the dedupe key before the handler and acks the message', async () => {
       const event = buildEvent();
       await handle(event);
 
+      expect(redis.setNx).toHaveBeenCalledWith('event:processed:evt-1', '1', 86400);
       expect(handler).toHaveBeenCalledWith(event);
-      expect(redis.set).toHaveBeenCalledWith('event:processed:evt-1', '1', 86400);
       expect(ack).toHaveBeenCalled();
       expect(nack).not.toHaveBeenCalled();
     });
@@ -156,24 +156,23 @@ describe('RabbitMqService', () => {
       await handle(event);
     });
 
-    it('skips duplicate events and acks without invoking the handler', async () => {
-      redis.exists.mockResolvedValue(true);
+    it('skips duplicate events (claim lost) and acks without invoking the handler', async () => {
+      redis.setNx.mockResolvedValue(false);
 
       await handle(buildEvent());
 
       expect(handler).not.toHaveBeenCalled();
-      expect(redis.set).not.toHaveBeenCalled();
       expect(ack).toHaveBeenCalled();
     });
 
-    it('nacks the message when the handler throws', async () => {
+    it('nacks and releases the claim when the handler throws', async () => {
       handler.mockRejectedValue(new Error('handler failed'));
 
       await handle(buildEvent());
 
       expect(nack).toHaveBeenCalledWith(expect.anything(), false, false);
       expect(ack).not.toHaveBeenCalled();
-      expect(redis.set).not.toHaveBeenCalled();
+      expect(redis.del).toHaveBeenCalledWith('event:processed:evt-1');
     });
 
     it('nacks malformed event envelopes before dedupe', async () => {
@@ -182,7 +181,7 @@ describe('RabbitMqService', () => {
       ).handleMessage(buildRawMessage({ type: 'example.created', payload: { message: 'hello' } }));
 
       expect(handler).not.toHaveBeenCalled();
-      expect(redis.exists).not.toHaveBeenCalled();
+      expect(redis.setNx).not.toHaveBeenCalled();
       expect(nack).toHaveBeenCalledWith(expect.anything(), false, false);
       expect(ack).not.toHaveBeenCalled();
     });

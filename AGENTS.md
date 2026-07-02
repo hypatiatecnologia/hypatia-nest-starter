@@ -16,7 +16,7 @@ Referência para assistentes de IA — microserviço NestJS (ecossistema Pantheo
 |---------|----------|
 | Bootstrap | `src/main.ts`, `src/app.module.ts` |
 | HTTP API | `src/**/**.controller.ts` |
-| Consumers / workers | `src/rabbitmq/` |
+| Consumers / workers | `src/modules/<feature>/*-event.consumer.ts` (infra em `src/rabbitmq/`) |
 | Domain services | `src/**/**.service.ts` |
 | Prisma | `prisma/schema.prisma` |
 
@@ -39,9 +39,9 @@ docker compose up -d --wait postgres redis rabbitmq   # infra híbrida
 
 ## Onboarding
 
-- [Onboarding](file:///Users/andersonalves/dev/hypatia/hypatia-nest-starter/docs/onboarding/ONBOARDING.md)
-- [Primeiros Passos](file:///Users/andersonalves/dev/hypatia/hypatia-nest-starter/docs/onboarding/PRIMEIROS-PASSOS.md)
-- [Troubleshooting](file:///Users/andersonalves/dev/hypatia/hypatia-nest-starter/docs/onboarding/TROUBLESHOOTING.md)
+- [Onboarding](docs/onboarding/ONBOARDING.md)
+- [Primeiros Passos](docs/onboarding/PRIMEIROS-PASSOS.md)
+- [Troubleshooting](docs/onboarding/TROUBLESHOOTING.md)
 
 ## Cursor
 

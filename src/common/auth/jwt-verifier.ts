@@ -1,56 +1,36 @@
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createSecretKey } from 'crypto';
+import { jwtVerify, JWTPayload } from 'jose';
 
-interface JwtPayload {
-  exp?: number;
-  sub?: string;
+export interface JwtVerifyOptions {
+  /** When set, `iss` must match — rejects tokens minted for other issuers. */
+  issuer?: string;
+  /** When set, `aud` must contain this value — prevents cross-service token reuse. */
+  audience?: string;
 }
 
-function decodeBase64Url(value: string): Buffer {
-  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-  const padding = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4));
-  return Buffer.from(normalized + padding, 'base64');
-}
-
-function parsePayload(encodedPayload: string): JwtPayload | null {
+/**
+ * Verifies an HS256 JWT issued by Argus (or compatible issuers) via `jose`.
+ *
+ * Enforced: signature, algorithm pinned to HS256, `exp` required (no eternal
+ * tokens), 5s clock tolerance, and optional `iss`/`aud` claims.
+ *
+ * Returns the verified payload, or null when the token is invalid.
+ */
+export async function verifyHs256Jwt(
+  token: string,
+  secret: string,
+  options: JwtVerifyOptions = {},
+): Promise<JWTPayload | null> {
   try {
-    const parsed = JSON.parse(decodeBase64Url(encodedPayload).toString('utf8')) as JwtPayload;
-    return typeof parsed === 'object' && parsed !== null ? parsed : null;
+    const { payload } = await jwtVerify(token, createSecretKey(Buffer.from(secret, 'utf8')), {
+      algorithms: ['HS256'],
+      requiredClaims: ['exp'],
+      clockTolerance: 5,
+      ...(options.issuer ? { issuer: options.issuer } : {}),
+      ...(options.audience ? { audience: options.audience } : {}),
+    });
+    return payload;
   } catch {
     return null;
   }
-}
-
-function isExpired(payload: JwtPayload): boolean {
-  if (typeof payload.exp !== 'number') {
-    return false;
-  }
-
-  return payload.exp * 1000 <= Date.now();
-}
-
-/** Verifies HS256 JWT signatures issued by Argus (or compatible issuers). */
-export function verifyHs256Jwt(token: string, secret: string): boolean {
-  const parts = token.split('.');
-  if (parts.length !== 3 || parts.some((part) => !part)) {
-    return false;
-  }
-
-  const [encodedHeader, encodedPayload, signature] = parts;
-  const expected = createHmac('sha256', secret)
-    .update(`${encodedHeader}.${encodedPayload}`)
-    .digest('base64url');
-
-  const received = decodeBase64Url(signature);
-  const expectedBuffer = decodeBase64Url(expected);
-
-  if (received.length !== expectedBuffer.length) {
-    return false;
-  }
-
-  if (!timingSafeEqual(received, expectedBuffer)) {
-    return false;
-  }
-
-  const payload = parsePayload(encodedPayload);
-  return payload !== null && !isExpired(payload);
 }

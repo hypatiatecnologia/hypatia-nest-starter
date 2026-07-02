@@ -25,7 +25,13 @@ export interface AppConfig {
   rabbitmqDlxExchange: string;
   rabbitmqQueue: string;
   argusJwtSecret?: string;
+  argusJwtIssuer?: string;
+  argusJwtAudience?: string;
   internalApiKey?: string;
+  /** Express `trust proxy` — set when running behind Cerberus/reverse proxy. */
+  trustProxy?: number | string;
+  throttleTtlMs: number;
+  throttleLimit: number;
 }
 
 const envSchema = z
@@ -41,7 +47,12 @@ const envSchema = z
     RABBITMQ_DLX_EXCHANGE: z.string().default('hypatia.events.dlx'),
     RABBITMQ_QUEUE: z.string().default('hypatia-service.events'),
     ARGUS_JWT_SECRET: z.string().optional(),
+    ARGUS_JWT_ISSUER: z.string().optional(),
+    ARGUS_JWT_AUDIENCE: z.string().optional(),
     INTERNAL_API_KEY: z.string().optional(),
+    TRUST_PROXY: z.string().optional(),
+    THROTTLE_TTL_MS: z.coerce.number().int().min(1000).default(60000),
+    THROTTLE_LIMIT: z.coerce.number().int().min(1).default(100),
   })
   .superRefine((env, ctx) => {
     if (env.RABBITMQ_MODE !== 'off' && !env.RABBITMQ_URL?.trim()) {
@@ -62,6 +73,24 @@ const envSchema = z
     }
   });
 
+/**
+ * TRUST_PROXY accepts the same values as Express `trust proxy`:
+ *   "true"      → 1 (trust the first hop only — safer than trusting all proxies)
+ *   "2"         → number of hops
+ *   "loopback" / CIDR list → passed through as-is
+ * Unset/"false" → proxy headers are NOT trusted (direct exposure).
+ */
+function parseTrustProxy(raw?: string): number | string | undefined {
+  const value = raw?.trim();
+  if (!value || value.toLowerCase() === 'false') {
+    return undefined;
+  }
+  if (value.toLowerCase() === 'true') {
+    return 1;
+  }
+  return /^\d+$/.test(value) ? Number(value) : value;
+}
+
 function mapToAppConfig(env: z.infer<typeof envSchema>): AppConfig {
   return {
     port: env.PORT,
@@ -75,7 +104,12 @@ function mapToAppConfig(env: z.infer<typeof envSchema>): AppConfig {
     rabbitmqDlxExchange: env.RABBITMQ_DLX_EXCHANGE,
     rabbitmqQueue: env.RABBITMQ_QUEUE,
     argusJwtSecret: env.ARGUS_JWT_SECRET?.trim() || undefined,
+    argusJwtIssuer: env.ARGUS_JWT_ISSUER?.trim() || undefined,
+    argusJwtAudience: env.ARGUS_JWT_AUDIENCE?.trim() || undefined,
     internalApiKey: env.INTERNAL_API_KEY?.trim() || undefined,
+    trustProxy: parseTrustProxy(env.TRUST_PROXY),
+    throttleTtlMs: env.THROTTLE_TTL_MS,
+    throttleLimit: env.THROTTLE_LIMIT,
   };
 }
 

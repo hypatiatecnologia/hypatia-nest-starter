@@ -28,7 +28,8 @@ const hypatiaEventSchema = z
  * Topology (created automatically on connect):
  *   hypatia.events          — topic exchange (routing key = event type)
  *   hypatia.events.dlx      — dead-letter exchange
- *   {RABBITMQ_QUEUE}        — service queue, bound to `#`
+ *   {RABBITMQ_QUEUE}        — service queue, bound to the routing keys of the
+ *                             registered handlers (only receives what it consumes)
  *   {RABBITMQ_QUEUE}.dlq    — dead-letter queue for failed messages
  *
  * Publisher usage (api archetype):
@@ -39,7 +40,7 @@ const hypatiaEventSchema = z
  *   // In onModuleInit — BEFORE onApplicationBootstrap starts consuming:
  *   this.rabbitmq.registerHandler('order.created', (event) => this.handle(event));
  *
- * Management UI (local dev): http://localhost:15672 (guest/guest)
+ * Management UI (local dev): http://localhost:15672 (RABBITMQ_USER / RABBITMQ_PASSWORD do .env)
  */
 @Injectable()
 export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy {
@@ -164,8 +165,12 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
         'x-dead-letter-routing-key': queue,
       },
     });
-    // `#` binds all event types; filter by handler map in handleMessage.
-    await channel.bindQueue(queue, exchange, '#');
+    // Bind only the event types this service handles — a `#` binding would
+    // deliver every event in the ecosystem just to be acked and dropped.
+    // Handlers are registered in onModuleInit, before connect() runs.
+    for (const eventType of this.handlers.keys()) {
+      await channel.bindQueue(queue, exchange, eventType);
+    }
     await channel.prefetch(1);
   }
 
@@ -191,6 +196,7 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
   private async handleMessage(message: ConsumeMessage | null): Promise<void> {
     if (!message || !this.channel) return;
 
+    let dedupeKey: string | undefined;
     try {
       const event = this.parseEvent(message);
       const handler = this.handlers.get(event.type);
@@ -200,10 +206,11 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
         return;
       }
 
-      // Idempotency: skip if this eventId was already processed (24h TTL).
-      const dedupeKey = `event:processed:${event.eventId}`;
-      const alreadyProcessed = await this.redis.exists(dedupeKey);
-      if (alreadyProcessed) {
+      // Idempotency: atomically claim this eventId BEFORE running the handler
+      // (SET NX, 24h TTL). Concurrent replicas cannot both win the claim.
+      dedupeKey = `event:processed:${event.eventId}`;
+      const claimed = await this.redis.setNx(dedupeKey, '1', 86400);
+      if (!claimed) {
         this.logger.debug(`Skipping duplicate event ${event.eventId}`);
         this.channel.ack(message);
         return;
@@ -217,11 +224,14 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
           await handler(event);
         },
       );
-      await this.redis.set(dedupeKey, '1', 86400);
       this.channel.ack(message);
     } catch (error) {
-      const reason = error instanceof Error ? error.message : 'unknown';
-      this.logger.error(`Failed to process message: ${reason}`);
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(`Failed to process message: ${err.message}`, err.stack);
+      // Release the claim so a redelivery/manual DLQ replay can process it.
+      if (dedupeKey) {
+        await this.redis.del(dedupeKey).catch(() => undefined);
+      }
       // nack without requeue → message goes to DLQ via x-dead-letter-exchange.
       this.channel.nack(message, false, false);
     }

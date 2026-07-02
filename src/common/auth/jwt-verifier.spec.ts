@@ -10,23 +10,55 @@ function createToken(payload: Record<string, unknown>, secret: string): string {
 
 describe('verifyHs256Jwt', () => {
   const secret = 'test-secret';
+  const futureExp = () => Math.floor(Date.now() / 1000) + 60;
 
-  it('accepts a valid token', () => {
-    const token = createToken({ sub: 'user-1', exp: Math.floor(Date.now() / 1000) + 60 }, secret);
-    expect(verifyHs256Jwt(token, secret)).toBe(true);
+  it('accepts a valid token and returns its payload', async () => {
+    const token = createToken({ sub: 'user-1', exp: futureExp() }, secret);
+    const payload = await verifyHs256Jwt(token, secret);
+
+    expect(payload).not.toBeNull();
+    expect(payload?.sub).toBe('user-1');
   });
 
-  it('rejects tokens signed with a different secret', () => {
-    const token = createToken({ sub: 'user-1' }, 'other-secret');
-    expect(verifyHs256Jwt(token, secret)).toBe(false);
+  it('rejects tokens signed with a different secret', async () => {
+    const token = createToken({ sub: 'user-1', exp: futureExp() }, 'other-secret');
+    expect(await verifyHs256Jwt(token, secret)).toBeNull();
   });
 
-  it('rejects expired tokens', () => {
+  it('rejects expired tokens', async () => {
     const token = createToken({ sub: 'user-1', exp: Math.floor(Date.now() / 1000) - 60 }, secret);
-    expect(verifyHs256Jwt(token, secret)).toBe(false);
+    expect(await verifyHs256Jwt(token, secret)).toBeNull();
   });
 
-  it('rejects malformed tokens', () => {
-    expect(verifyHs256Jwt('not-a-jwt', secret)).toBe(false);
+  it('rejects tokens without exp (no eternal tokens)', async () => {
+    const token = createToken({ sub: 'user-1' }, secret);
+    expect(await verifyHs256Jwt(token, secret)).toBeNull();
+  });
+
+  it('rejects malformed tokens', async () => {
+    expect(await verifyHs256Jwt('not-a-jwt', secret)).toBeNull();
+  });
+
+  it('enforces issuer when configured', async () => {
+    const good = createToken({ sub: 'u', exp: futureExp(), iss: 'argus' }, secret);
+    const bad = createToken({ sub: 'u', exp: futureExp(), iss: 'someone-else' }, secret);
+
+    expect(await verifyHs256Jwt(good, secret, { issuer: 'argus' })).not.toBeNull();
+    expect(await verifyHs256Jwt(bad, secret, { issuer: 'argus' })).toBeNull();
+  });
+
+  it('enforces audience when configured', async () => {
+    const good = createToken({ sub: 'u', exp: futureExp(), aud: 'athena-core' }, secret);
+    const bad = createToken({ sub: 'u', exp: futureExp(), aud: 'midas-payment' }, secret);
+
+    expect(await verifyHs256Jwt(good, secret, { audience: 'athena-core' })).not.toBeNull();
+    expect(await verifyHs256Jwt(bad, secret, { audience: 'athena-core' })).toBeNull();
+  });
+
+  it('rejects alg=none tokens', async () => {
+    const header = Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url');
+    const body = Buffer.from(JSON.stringify({ sub: 'u', exp: futureExp() })).toString('base64url');
+
+    expect(await verifyHs256Jwt(`${header}.${body}.`, secret)).toBeNull();
   });
 });

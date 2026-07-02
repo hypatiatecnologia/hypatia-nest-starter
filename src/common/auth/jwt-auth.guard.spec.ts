@@ -2,6 +2,7 @@ import { ExecutionContext } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import { createHmac } from 'crypto';
+import { Request } from 'express';
 import { AppConfig } from '../../config/configuration';
 import { DomainException } from '../errors/domain.exception';
 import { API_KEY_HEADER } from './auth.constants';
@@ -14,25 +15,26 @@ function createToken(payload: Record<string, unknown>, secret: string): string {
   return `${header}.${body}.${signature}`;
 }
 
-function buildContext(options: {
-  isPublic?: boolean;
-  authorization?: string;
-  apiKey?: string;
-}): ExecutionContext {
+function buildContext(options: { authorization?: string; apiKey?: string }): {
+  context: ExecutionContext;
+  request: Request;
+} {
   const request = {
     headers: {
       ...(options.authorization ? { authorization: options.authorization } : {}),
       ...(options.apiKey ? { [API_KEY_HEADER]: options.apiKey } : {}),
     },
-  };
+  } as unknown as Request;
 
-  return {
+  const context = {
     getHandler: () => ({}),
     getClass: () => ({}),
     switchToHttp: () => ({
       getRequest: () => request,
     }),
   } as ExecutionContext;
+
+  return { context, request };
 }
 
 describe('JwtAuthGuard', () => {
@@ -46,47 +48,77 @@ describe('JwtAuthGuard', () => {
 
   let guard: JwtAuthGuard;
 
+  function mockConfig(values: Partial<Record<string, unknown>>): void {
+    (config.get as jest.Mock).mockImplementation((key: string) => values[key]);
+  }
+
   beforeEach(() => {
     jest.clearAllMocks();
     guard = new JwtAuthGuard(reflector, config);
   });
 
-  it('allows public routes', () => {
+  it('allows public routes without authenticating', async () => {
     (reflector.getAllAndOverride as jest.Mock).mockReturnValue(true);
-    expect(guard.canActivate(buildContext({}))).toBe(true);
+    const { context, request } = buildContext({});
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(request.user).toBeUndefined();
   });
 
-  it('allows requests with a valid bearer token', () => {
+  it('allows requests with a valid bearer token and populates request.user', async () => {
     (reflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
-    (config.get as jest.Mock).mockImplementation((key: string) => {
-      if (key === 'argusJwtSecret') return 'jwt-secret';
-      if (key === 'internalApiKey') return undefined;
-      return undefined;
-    });
+    mockConfig({ argusJwtSecret: 'jwt-secret' });
 
     const token = createToken(
       { sub: 'user-1', exp: Math.floor(Date.now() / 1000) + 60 },
       'jwt-secret',
     );
+    const { context, request } = buildContext({ authorization: `Bearer ${token}` });
 
-    expect(guard.canActivate(buildContext({ authorization: `Bearer ${token}` }))).toBe(true);
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(request.user).toMatchObject({ sub: 'user-1', method: 'jwt' });
+    expect(request.user?.claims.sub).toBe('user-1');
   });
 
-  it('allows requests with a valid internal API key', () => {
+  it('rejects bearer tokens with the wrong issuer', async () => {
     (reflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
-    (config.get as jest.Mock).mockImplementation((key: string) => {
-      if (key === 'argusJwtSecret') return undefined;
-      if (key === 'internalApiKey') return 'local-api-key';
-      return undefined;
-    });
+    mockConfig({ argusJwtSecret: 'jwt-secret', argusJwtIssuer: 'argus' });
 
-    expect(guard.canActivate(buildContext({ apiKey: 'local-api-key' }))).toBe(true);
+    const token = createToken(
+      { sub: 'user-1', iss: 'other-issuer', exp: Math.floor(Date.now() / 1000) + 60 },
+      'jwt-secret',
+    );
+    const { context } = buildContext({ authorization: `Bearer ${token}` });
+
+    await expect(guard.canActivate(context)).rejects.toThrow(DomainException);
   });
 
-  it('rejects unauthorized requests', () => {
+  it('allows requests with a valid internal API key', async () => {
     (reflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
-    (config.get as jest.Mock).mockReturnValue(undefined);
+    mockConfig({ internalApiKey: 'local-api-key' });
 
-    expect(() => guard.canActivate(buildContext({}))).toThrow(DomainException);
+    const { context, request } = buildContext({ apiKey: 'local-api-key' });
+
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+    expect(request.user).toMatchObject({ method: 'api_key' });
+  });
+
+  it('rejects wrong API keys, including different lengths', async () => {
+    (reflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
+    mockConfig({ internalApiKey: 'local-api-key' });
+
+    await expect(guard.canActivate(buildContext({ apiKey: 'wrong' }).context)).rejects.toThrow(
+      DomainException,
+    );
+    await expect(
+      guard.canActivate(buildContext({ apiKey: 'local-api-key-extra' }).context),
+    ).rejects.toThrow(DomainException);
+  });
+
+  it('rejects unauthorized requests', async () => {
+    (reflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
+    mockConfig({});
+
+    await expect(guard.canActivate(buildContext({}).context)).rejects.toThrow(DomainException);
   });
 });

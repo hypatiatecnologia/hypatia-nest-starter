@@ -9,12 +9,12 @@ import { RabbitMqService } from './rabbitmq/rabbitmq.service';
 describe('HealthController', () => {
   let controller: HealthController;
   let prisma: { $queryRaw: jest.Mock };
-  let redis: { get: jest.Mock; set: jest.Mock };
+  let redis: { ping: jest.Mock };
   let rabbitmq: { isEnabled: jest.Mock; checkConnection: jest.Mock };
 
   beforeEach(async () => {
     prisma = { $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]) };
-    redis = { get: jest.fn().mockResolvedValue('1'), set: jest.fn() };
+    redis = { ping: jest.fn().mockResolvedValue(undefined) };
     rabbitmq = {
       isEnabled: jest.fn().mockReturnValue(true),
       checkConnection: jest.fn().mockReturnValue(true),
@@ -56,7 +56,7 @@ describe('HealthController', () => {
   });
 
   it('returns degraded with HTTP 503 when redis is unreachable', async () => {
-    redis.get.mockRejectedValue(new Error('connection refused'));
+    redis.ping.mockRejectedValue(new Error('connection refused'));
     const res = { status: jest.fn().mockReturnThis() } as unknown as Response;
 
     const body = await controller.check(res);
@@ -85,5 +85,26 @@ describe('HealthController', () => {
 
     expect(body.status).toBe('ok');
     expect(body.checks.rabbitmq).toBe('disabled');
+  });
+
+  it('liveness never touches dependencies', () => {
+    prisma.$queryRaw.mockRejectedValue(new Error('down'));
+    redis.ping.mockRejectedValue(new Error('down'));
+    rabbitmq.checkConnection.mockReturnValue(false);
+
+    const body = controller.live();
+
+    expect(body.status).toBe('ok');
+    expect(prisma.$queryRaw).not.toHaveBeenCalled();
+    expect(redis.ping).not.toHaveBeenCalled();
+  });
+
+  it('readiness endpoint mirrors /health', async () => {
+    const res = { status: jest.fn().mockReturnThis() } as unknown as Response;
+
+    const body = await controller.ready(res);
+
+    expect(body.status).toBe('ok');
+    expect(body.checks).toEqual({ postgres: 'ok', redis: 'ok', rabbitmq: 'ok' });
   });
 });

@@ -1,10 +1,12 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
+import { createHash, timingSafeEqual } from 'crypto';
 import { Request } from 'express';
 import { AppConfig } from '../../config/configuration';
 import { DomainException } from '../errors/domain.exception';
 import { API_KEY_HEADER, IS_PUBLIC_KEY } from './auth.constants';
+import { AuthenticatedUser } from './auth.types';
 import { verifyHs256Jwt } from './jwt-verifier';
 
 @Injectable()
@@ -14,7 +16,7 @@ export class JwtAuthGuard implements CanActivate {
     private readonly config: ConfigService<AppConfig, true>,
   ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -24,26 +26,38 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest<Request>();
-    if (this.isAuthorized(request)) {
+    const user = await this.authenticate(request);
+    if (user) {
+      request.user = user;
       return true;
     }
 
     throw new DomainException('unauthorized', 'Unauthorized');
   }
 
-  private isAuthorized(request: Request): boolean {
+  private async authenticate(request: Request): Promise<AuthenticatedUser | null> {
     const bearerToken = this.extractBearerToken(request.headers.authorization);
     const argusJwtSecret = this.config.get('argusJwtSecret', { infer: true });
 
-    if (bearerToken && argusJwtSecret && verifyHs256Jwt(bearerToken, argusJwtSecret)) {
-      return true;
+    if (bearerToken && argusJwtSecret) {
+      const payload = await verifyHs256Jwt(bearerToken, argusJwtSecret, {
+        issuer: this.config.get('argusJwtIssuer', { infer: true }),
+        audience: this.config.get('argusJwtAudience', { infer: true }),
+      });
+      if (payload) {
+        return { sub: payload.sub, method: 'jwt', claims: payload };
+      }
     }
 
     const internalApiKey = this.config.get('internalApiKey', { infer: true });
     const providedApiKey = request.headers[API_KEY_HEADER];
     const apiKey = Array.isArray(providedApiKey) ? providedApiKey[0] : providedApiKey;
 
-    return Boolean(internalApiKey && apiKey && apiKey === internalApiKey);
+    if (internalApiKey && apiKey && constantTimeEquals(apiKey, internalApiKey)) {
+      return { method: 'api_key', claims: {} };
+    }
+
+    return null;
   }
 
   private extractBearerToken(authorization?: string): string | null {
@@ -54,4 +68,11 @@ export class JwtAuthGuard implements CanActivate {
     const token = authorization.slice('Bearer '.length).trim();
     return token || null;
   }
+}
+
+// Hashing first equalizes lengths, so the comparison leaks neither content nor length.
+function constantTimeEquals(a: string, b: string): boolean {
+  const digestA = createHash('sha256').update(a).digest();
+  const digestB = createHash('sha256').update(b).digest();
+  return timingSafeEqual(digestA, digestB);
 }

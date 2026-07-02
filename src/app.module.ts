@@ -1,11 +1,12 @@
 import { DynamicModule, Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis';
 import { LoggerModule } from 'nestjs-pino';
 import { randomUUID } from 'crypto';
 import { config as loadDotenv } from 'dotenv';
-import loadConfiguration, { validateConfig } from './config/configuration';
+import loadConfiguration, { AppConfig, validateConfig } from './config/configuration';
 import { CORRELATION_ID_HEADER } from './common/correlation/correlation.constants';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
@@ -60,6 +61,7 @@ export class AppModule {
             redact: {
               paths: [
                 'req.headers.authorization',
+                'req.headers["x-api-key"]',
                 'req.body.password',
                 'req.body.cpf',
                 'req.body.token',
@@ -72,7 +74,26 @@ export class AppModule {
             },
           },
         }),
-        ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+        ThrottlerModule.forRootAsync({
+          inject: [ConfigService],
+          useFactory: (config: ConfigService<AppConfig, true>) => ({
+            throttlers: [
+              {
+                ttl: config.get('throttleTtlMs', { infer: true }),
+                limit: config.get('throttleLimit', { infer: true }),
+              },
+            ],
+            // Redis storage in production so the limit holds across replicas;
+            // in-memory elsewhere (tests/dev must not require a live Redis).
+            ...(config.get('nodeEnv', { infer: true }) === 'production'
+              ? {
+                  storage: new ThrottlerStorageRedisService(
+                    config.get('redisUrl', { infer: true }),
+                  ),
+                }
+              : {}),
+          }),
+        }),
         HttpClientModule,
         PrismaModule,
         RedisModule,
@@ -81,8 +102,11 @@ export class AppModule {
       ],
       controllers: [HealthController],
       providers: [
-        { provide: APP_GUARD, useClass: JwtAuthGuard },
+        // Order matters: global guards run in registration order. Throttler
+        // MUST come first so failed auth attempts are also rate limited
+        // (otherwise credential brute force bypasses throttling entirely).
         { provide: APP_GUARD, useClass: ThrottlerGuard },
+        { provide: APP_GUARD, useClass: JwtAuthGuard },
         { provide: APP_FILTER, useClass: AllExceptionsFilter },
       ],
     };

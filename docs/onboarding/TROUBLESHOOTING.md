@@ -88,7 +88,7 @@ npm test
 
 **Causa:** `RABBITMQ_MODE=off` ou RabbitMQ indisponível.
 
-**Correção:** em `.env`, `RABBITMQ_MODE=publisher` e `RABBITMQ_URL=amqp://guest:guest@localhost:5672` com container `rabbitmq` rodando.
+**Correção:** em `.env`, `RABBITMQ_MODE=publisher` e `RABBITMQ_URL=amqp://hypatia:hypatia-rabbitmq-dev@localhost:5672` com container `rabbitmq` rodando.
 
 ---
 

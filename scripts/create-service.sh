@@ -69,6 +69,15 @@ replace "${TARGET_DIR}/.env.example"
 replace "${TARGET_DIR}/.env"
 replace "${TARGET_DIR}/README.md"
 
+# Unique local API key per service — the shared placeholder always ends up
+# forgotten in some .env. The .env.example keeps the placeholder on purpose.
+if command -v openssl >/dev/null 2>&1; then
+  GENERATED_KEY="$(openssl rand -hex 32)"
+  sed -i.bak "s/INTERNAL_API_KEY=change-me-local-dev/INTERNAL_API_KEY=${GENERATED_KEY}/" "${TARGET_DIR}/.env"
+  rm -f "${TARGET_DIR}/.env.bak"
+  echo "Generated unique INTERNAL_API_KEY in .env"
+fi
+
 cd "$TARGET_DIR"
 git init -q
 echo "Done. Next steps (see docs/onboarding/PRIMEIROS-PASSOS.md — Trilha C):"

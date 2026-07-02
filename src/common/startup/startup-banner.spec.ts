@@ -11,7 +11,7 @@ describe('startup-banner', () => {
   it('buildStartupBanner includes service endpoints and mode', () => {
     const banner = buildStartupBanner(input);
 
-    expect(banner).toContain('HYPIATIA — hypatia-service');
+    expect(banner).toContain('HYPATIA — hypatia-service');
     expect(banner).toContain('http://localhost:3000/docs/api');
     expect(banner).toContain('RabbitMQ publisher');
     expect(banner).toMatch(/^╔═+/);

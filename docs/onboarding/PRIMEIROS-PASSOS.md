@@ -69,6 +69,7 @@ Abra http://localhost:3000/docs/api (Swagger).
 ```bash
 curl -X POST http://localhost:3000/example/events \
   -H 'Content-Type: application/json' \
+  -H 'x-api-key: change-me-local-dev' \
   -H 'x-correlation-id: primeiro-passo-evento' \
   -d '{"type":"example.created","payload":{"message":"hello"}}'
 ```

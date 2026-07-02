@@ -9,6 +9,15 @@ module.exports = {
   collectCoverageFrom: ['src/**/*.(t|j)s', '!src/main.ts'],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov'],
+  // Regression floor, not a target — raise as the real service grows.
+  coverageThreshold: {
+    global: {
+      lines: 80,
+      statements: 80,
+      functions: 70,
+      branches: 70,
+    },
+  },
   testEnvironment: 'node',
   watchman: false,
   setupFiles: ['<rootDir>/test/setup-env.ts'],
