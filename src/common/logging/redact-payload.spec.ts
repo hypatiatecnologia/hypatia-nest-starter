@@ -1,12 +1,12 @@
 import { redactPayload, DEFAULT_SENSITIVE_FIELDS } from './redact-payload';
 
 describe('redactPayload', () => {
-  it('masks top-level sensitive fields', () => {
+  it('masks top-level sensitive fields with a fixed mask (no length leak)', () => {
     const input = { password: 'secret123', name: 'Alice' };
 
     const result = redactPayload(input);
 
-    expect(result.password).toBe('*********');
+    expect(result.password).toBe('[REDACTED]');
     expect(result.name).toBe('Alice');
   });
 
@@ -20,8 +20,8 @@ describe('redactPayload', () => {
 
     const result = redactPayload(input);
 
-    expect(result.user.Email).toBe('*****************');
-    expect(result.user.profile.apiKey).toBe('*******');
+    expect(result.user.Email).toBe('[REDACTED]');
+    expect(result.user.profile.apiKey).toBe('[REDACTED]');
   });
 
   it('redacts arrays of objects', () => {
@@ -31,8 +31,8 @@ describe('redactPayload', () => {
 
     const result = redactPayload(input);
 
-    expect(result.items[0].token).toBe('***');
-    expect(result.items[1].token).toBe('***');
+    expect(result.items[0].token).toBe('[REDACTED]');
+    expect(result.items[1].token).toBe('[REDACTED]');
   });
 
   it('uses custom sensitive field list', () => {
@@ -41,7 +41,7 @@ describe('redactPayload', () => {
     const result = redactPayload(input, ['note']);
 
     expect(result.customField).toBe('visible');
-    expect(result.note).toBe('*******');
+    expect(result.note).toBe('[REDACTED]');
   });
 
   it('exports default sensitive fields', () => {

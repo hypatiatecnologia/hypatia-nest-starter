@@ -21,6 +21,17 @@ interface DiscoverFeatureModulesOptions {
 /**
  * Discovers feature modules under `src/modules/<feature>/<feature>.module.ts`.
  * Works in dev (ts) and prod (js) — cwd resolves to `src/` or `dist/` via __dirname.
+ *
+ * Adding a feature = creating the folder; app.module.ts is never edited:
+ *   src/modules/billing/billing.module.ts → export class BillingModule {}
+ *
+ * Naming contract: the kebab-case filename must match the exported class
+ * (billing.module.ts → BillingModule); a mismatch fails the boot with a clear
+ * error rather than silently skipping the module.
+ *
+ * Optionally export a static `register(config: AppConfig)` to shape the module
+ * from typed config at bootstrap — see ExampleModule, which swaps HTTP
+ * controllers for queue consumers based on RABBITMQ_MODE.
  */
 export async function discoverFeatureModules(
   options: DiscoverFeatureModulesOptions = {},

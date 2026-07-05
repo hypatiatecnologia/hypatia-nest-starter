@@ -8,9 +8,15 @@ import { ConfirmChannel, ConsumeMessage } from 'amqplib';
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { AppConfig } from '../config/configuration';
+import { withTimeout } from '../common/async/with-timeout';
 import { CorrelationContext } from '../common/correlation/correlation.context';
 import { RedisService } from '../redis/redis.service';
 import { HypatiaEvent, EventHandler } from './rabbitmq.types';
+
+// amqp-connection-manager retries forever; without these bounds a RabbitMQ
+// outage hangs bootstrap (connect) or HTTP requests (buffered publish).
+const CONNECT_TIMEOUT_MS = 30_000;
+const PUBLISH_TIMEOUT_MS = 10_000;
 
 const hypatiaEventSchema = z
   .object({
@@ -39,6 +45,18 @@ const hypatiaEventSchema = z
  * Consumer usage (worker archetype):
  *   // In onModuleInit — BEFORE onApplicationBootstrap starts consuming:
  *   this.rabbitmq.registerHandler('order.created', (event) => this.handle(event));
+ *
+ * Why two lifecycle hooks: feature modules register handlers in onModuleInit;
+ * this service connects and starts consuming in onApplicationBootstrap, which
+ * Nest guarantees to run after ALL modules' onModuleInit. The handler map thus
+ * drives the queue bindings in setupTopology(). Registering a handler after
+ * bootstrap is a silent no-op — its binding never gets created.
+ *
+ * Message lifecycle on the consumer side (handleMessage):
+ *   parse + validate envelope → claim eventId in Redis (skip duplicates) →
+ *   run handler → ack. Any failure → release claim + nack without requeue →
+ *   the broker dead-letters the message to {queue}.dlq for inspection/replay
+ *   (Management UI → Queues → {queue}.dlq).
  *
  * Management UI (local dev): http://localhost:15672 (RABBITMQ_USER / RABBITMQ_PASSWORD do .env)
  */
@@ -116,12 +134,20 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
       throw new Error('RabbitMQ channel is not available');
     }
 
-    await this.channel.publish(exchange, type, body, {
-      persistent: true,
-      contentType: 'application/json',
-      messageId: event.eventId,
-      correlationId: event.correlationId,
-    });
+    // ChannelWrapper buffers while disconnected — without a timeout the caller
+    // (usually an HTTP request) hangs for the whole outage. On timeout the
+    // buffered message may still go out after reconnect; consumers dedupe by
+    // eventId, so a caller retry does not double-process.
+    await withTimeout(
+      this.channel.publish(exchange, type, body, {
+        persistent: true,
+        contentType: 'application/json',
+        messageId: event.eventId,
+        correlationId: event.correlationId,
+      }),
+      PUBLISH_TIMEOUT_MS,
+      `RabbitMQ publish (${type})`,
+    );
   }
 
   private async connect(): Promise<void> {
@@ -145,7 +171,9 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
       throw new Error('RabbitMQ channel is not available');
     }
 
-    await channel.waitForConnect();
+    // Fail fast: a broker that is down at boot should abort bootstrap (and be
+    // caught by main.ts) instead of hanging forever without exposing /health.
+    await withTimeout(channel.waitForConnect(), CONNECT_TIMEOUT_MS, 'RabbitMQ connect');
   }
 
   private async setupTopology(channel: ConfirmChannel): Promise<void> {
@@ -154,6 +182,9 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
     const queue = this.config.get('rabbitmqQueue', { infer: true });
     const dlq = `${queue}.dlq`;
 
+    // Topic exchange: the routing key is the event type, and bindings act as
+    // subscriptions — publishers never know who consumes. durable = topology
+    // survives a broker restart (messages too, via `persistent` on publish).
     await channel.assertExchange(exchange, 'topic', { durable: true });
     await channel.assertExchange(dlx, 'direct', { durable: true });
     await channel.assertQueue(dlq, { durable: true });
@@ -171,6 +202,9 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
     for (const eventType of this.handlers.keys()) {
       await channel.bindQueue(queue, exchange, eventType);
     }
+    // prefetch(1): the broker sends one unacked message at a time per consumer.
+    // Slower than batching, but a crash loses at most one in-flight message and
+    // work spreads evenly across replicas. Raise it if throughput demands.
     await channel.prefetch(1);
   }
 
@@ -206,8 +240,10 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
         return;
       }
 
-      // Idempotency: atomically claim this eventId BEFORE running the handler
-      // (SET NX, 24h TTL). Concurrent replicas cannot both win the claim.
+      // Idempotency: RabbitMQ delivers *at least once* — redeliveries happen on
+      // consumer crash, network blips, or manual DLQ replays. Atomically claim
+      // this eventId BEFORE running the handler (SET NX, 24h TTL) so processing
+      // happens at most once; concurrent replicas cannot both win the claim.
       dedupeKey = `event:processed:${event.eventId}`;
       const claimed = await this.redis.setNx(dedupeKey, '1', 86400);
       if (!claimed) {

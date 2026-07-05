@@ -20,6 +20,9 @@ import { ExampleEventConsumer } from './example-event.consumer';
  */
 @Module({ providers: [] })
 export class ExampleModule {
+  // Optional hook called by module-discovery with the validated AppConfig.
+  // Plain modules (no register) are used as-is; use this only when the module
+  // shape depends on config, like the api/worker split below.
   static register(config: AppConfig): DynamicModule {
     const isConsumer = config.rabbitmqMode === 'consumer';
 

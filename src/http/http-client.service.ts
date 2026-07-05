@@ -20,8 +20,16 @@ export interface HttpClientRequestOptions {
  * Uses native fetch (Node 20+) — no extra dependency.
  *
  * Retries idempotent methods (GET, PUT, DELETE) up to MAX_ATTEMPTS times on
- * transient errors (429, 502, 503, 504) with jittered exponential backoff.
+ * transient errors — HTTP 429/502/503/504, network failures, and timeouts —
+ * with jittered exponential backoff.
  * POST is never retried unless `options.retry` is set explicitly.
+ *
+ * Usage (inject it — HttpClientModule is global):
+ *   const order = await this.http.get<Order>(`${ordersBaseUrl}/orders/${id}`);
+ *   await this.http.post(url, { body: { sku }, timeoutMs: 5_000 });
+ *
+ * Failures throw HttpClientError with the status code (query strings are
+ * stripped from messages — they may carry tokens). Timeouts default to 10s.
  */
 @Injectable()
 export class HttpClientService {
@@ -58,8 +66,7 @@ export class HttpClientService {
         options.retry ?? HttpClientService.IDEMPOTENT_METHODS.has(method.toUpperCase());
       const shouldRetry =
         methodIsRetryable &&
-        error instanceof HttpClientError &&
-        HttpClientService.RETRYABLE_STATUSES.has(error.statusCode) &&
+        this.isTransientError(error) &&
         attempt < HttpClientService.MAX_ATTEMPTS;
 
       if (!shouldRetry) throw error;
@@ -97,10 +104,26 @@ export class HttpClientService {
         return undefined as T;
       }
 
-      return (await response.json()) as T;
+      try {
+        return (await response.json()) as T;
+      } catch {
+        throw new HttpClientError(response.status, method, url, 'response body is not valid JSON');
+      }
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  private isTransientError(error: unknown): boolean {
+    if (error instanceof HttpClientError) {
+      return HttpClientService.RETRYABLE_STATUSES.has(error.statusCode);
+    }
+
+    // fetch (undici) rejects with TypeError on network failures (DNS,
+    // connection refused/reset) and with an AbortError DOMException when the
+    // timeout controller fires — both are transient by nature.
+    const name = (error as { name?: string } | null)?.name;
+    return error instanceof TypeError || name === 'AbortError';
   }
 
   private buildHeaders(extra?: Record<string, string>): Record<string, string> {

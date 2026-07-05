@@ -9,8 +9,10 @@ export class HttpClientError extends Error {
     public readonly statusCode: number,
     method: string,
     url: string,
+    detail?: string,
   ) {
-    super(`HTTP ${statusCode} for ${method} ${sanitizeUrlForLog(url)}`);
+    const suffix = detail ? ` — ${detail}` : '';
+    super(`HTTP ${statusCode} for ${method} ${sanitizeUrlForLog(url)}${suffix}`);
     this.name = 'HttpClientError';
   }
 }

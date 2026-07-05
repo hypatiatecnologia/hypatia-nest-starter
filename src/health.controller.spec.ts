@@ -87,6 +87,24 @@ describe('HealthController', () => {
     expect(body.checks.rabbitmq).toBe('disabled');
   });
 
+  it('marks a hung dependency as error after the check timeout', async () => {
+    jest.useFakeTimers();
+    try {
+      prisma.$queryRaw.mockReturnValue(new Promise(() => undefined));
+      const res = { status: jest.fn().mockReturnThis() } as unknown as Response;
+
+      const promise = controller.check(res);
+      await jest.runAllTimersAsync();
+      const body = await promise;
+
+      expect(body.checks.postgres).toBe('error');
+      expect(body.status).toBe('degraded');
+      expect(res.status).toHaveBeenCalledWith(HttpStatus.SERVICE_UNAVAILABLE);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it('liveness never touches dependencies', () => {
     prisma.$queryRaw.mockRejectedValue(new Error('down'));
     redis.ping.mockRejectedValue(new Error('down'));

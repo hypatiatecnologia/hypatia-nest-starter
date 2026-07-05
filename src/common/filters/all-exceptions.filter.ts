@@ -10,6 +10,16 @@ import { CorrelationContext } from '../correlation/correlation.context';
  * HttpException → status, message, and stable `code` (snake_case).
  * Everything else → 500 with code `internal_error` (details logged server-side).
  *
+ * Every error, on every route, has this shape:
+ *   {
+ *     "statusCode": 404, "code": "not_found", "message": "Order not found",
+ *     "correlationId": "…", "path": "/orders/42", "timestamp": "…"
+ *   }
+ * Clients branch on `code`; `correlationId` links the response to server logs
+ * (ask the caller for it when debugging). Unknown/unexpected errors stay
+ * generic on purpose — internals (stack, query, driver messages) never leak
+ * to the client, only to the log line emitted below.
+ *
  * Registered via APP_FILTER in AppModule to allow DI (PinoLogger injection).
  */
 @Catch()

@@ -10,13 +10,32 @@ import { AppConfig } from '../config/configuration';
  * - Athena: Redlock / inventory locks during checkout
  * - Consumers: idempotency keys (`event:processed:{eventId}`)
  * - General: short-lived cache, rate-limit counters
+ *
+ * Keep the wrapper thin: expose the specific commands services need instead of
+ * leaking the whole ioredis surface — it keeps usage greppable and mockable in
+ * tests. Add methods here as real use cases appear.
  */
 @Injectable()
 export class RedisService implements OnModuleDestroy {
   private readonly client: Redis;
 
   constructor(config: ConfigService<AppConfig, true>) {
-    this.client = new Redis(config.get('redisUrl', { infer: true }));
+    this.client = new Redis(config.get('redisUrl', { infer: true }), {
+      // Fail fast while Redis is down: without these bounds ioredis buffers
+      // commands and retries for a long time, hanging readiness probes and
+      // idempotency claims instead of surfacing an error.
+      maxRetriesPerRequest: 3,
+      commandTimeout: 5_000,
+    });
+  }
+
+  /**
+   * Underlying ioredis connection — for libraries that accept a client
+   * (e.g. throttler storage). Sharing it keeps a single connection whose
+   * lifecycle ends in onModuleDestroy.
+   */
+  getClient(): Redis {
+    return this.client;
   }
 
   async set(key: string, value: string, ttlSeconds?: number): Promise<void> {

@@ -77,6 +77,24 @@ describe('HttpClientService', () => {
     );
   });
 
+  it('wraps a non-JSON success body in HttpClientError (no raw SyntaxError)', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError('Unexpected token < in JSON');
+      },
+    });
+
+    const service = new HttpClientService();
+
+    await expect(service.get('https://api.example.com/html')).rejects.toMatchObject({
+      name: 'HttpClientError',
+      statusCode: 200,
+    });
+    expect(global.fetch).toHaveBeenCalledTimes(1); // 200 is not retryable
+  });
+
   describe('retry behavior', () => {
     beforeEach(() => jest.useFakeTimers());
 
@@ -118,6 +136,45 @@ describe('HttpClientService', () => {
 
       await expect(promise).resolves.toEqual({ recovered: true });
       expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('retries network failures (TypeError) on idempotent methods', async () => {
+      global.fetch = jest.fn().mockRejectedValue(new TypeError('fetch failed'));
+      const service = new HttpClientService();
+
+      const promise = service.get('https://api.example.com/unreachable');
+      promise.catch(() => undefined);
+      await jest.runAllTimersAsync();
+
+      await expect(promise).rejects.toThrow('fetch failed');
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it('retries timeouts (AbortError) on idempotent methods', async () => {
+      const abortError = Object.assign(new Error('This operation was aborted'), {
+        name: 'AbortError',
+      });
+      global.fetch = jest.fn().mockRejectedValue(abortError);
+      const service = new HttpClientService();
+
+      const promise = service.get('https://api.example.com/slow');
+      promise.catch(() => undefined);
+      await jest.runAllTimersAsync();
+
+      await expect(promise).rejects.toThrow('aborted');
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it('does NOT retry network failures on POST by default', async () => {
+      global.fetch = jest.fn().mockRejectedValue(new TypeError('fetch failed'));
+      const service = new HttpClientService();
+
+      const promise = service.post('https://api.example.com/orders', { body: { id: 1 } });
+      promise.catch(() => undefined);
+      await jest.runAllTimersAsync();
+
+      await expect(promise).rejects.toThrow('fetch failed');
+      expect(global.fetch).toHaveBeenCalledTimes(1);
     });
 
     it('does NOT retry POST by default (non-idempotent — effect may have applied)', async () => {

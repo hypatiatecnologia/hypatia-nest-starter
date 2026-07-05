@@ -98,6 +98,22 @@ describe('RabbitMqService', () => {
       expect(body.eventId).toEqual(expect.any(String));
     });
 
+    it('rejects publish after the timeout when the channel buffers indefinitely', async () => {
+      jest.useFakeTimers();
+      try {
+        // Simulates a disconnected broker: ChannelWrapper buffers and never settles.
+        publish.mockReturnValue(new Promise(() => undefined));
+
+        const promise = service.publish('example.created', { orderId: '42' });
+        const assertion = expect(promise).rejects.toThrow('RabbitMQ publish');
+        await jest.runAllTimersAsync();
+
+        await assertion;
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     it('uses CorrelationContext when correlationId is omitted', async () => {
       await CorrelationContext.runAsync('ctx-from-http', async () => {
         await service.publish('example.created', { orderId: '42' });

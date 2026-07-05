@@ -6,6 +6,15 @@ import { z } from 'zod';
  * All env access should go through this file — avoid scattered `process.env` calls.
  * Archetype presets live in `archetypes/api.env.example` and `archetypes/worker.env.example`.
  *
+ * Adding a new variable (checklist):
+ *   1. Add the UPPER_SNAKE_CASE key to `envSchema` below (default or validation)
+ *   2. Add the camelCase field to `AppConfig` and map it in `mapToAppConfig`
+ *   3. Document it in `.env.example` (and archetypes/ when archetype-specific)
+ *   4. Read it via `config.get('field', { infer: true })` — never process.env
+ *
+ * Invalid or missing config aborts the boot with a readable error listing every
+ * offending variable — a service with broken config must not come up half-alive.
+ *
  * RABBITMQ_MODE:
  *   off       — no RabbitMQ connection (e.g. early Hades / services without messaging)
  *   publisher — connect and publish events (Athena, Midas, Nemesis)

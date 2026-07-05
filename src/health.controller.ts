@@ -1,6 +1,7 @@
 import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
+import { withTimeout } from './common/async/with-timeout';
 import { Public } from './common/auth/public.decorator';
 import { PrismaService } from './prisma/prisma.service';
 import { RedisService } from './redis/redis.service';
@@ -14,10 +15,18 @@ import { RabbitMqService } from './rabbitmq/rabbitmq.service';
  * GET /health/ready — readiness: dependencies reachable; 503 removes the
  *                     instance from load balancing until they recover.
  * GET /health       — alias of /health/ready (backwards compatibility).
+ *
+ * All three are @Public — probes run before any credential exists. RabbitMQ
+ * being "error" makes readiness fail on purpose: a publisher that cannot
+ * publish or a worker that cannot consume is not ready, even if HTTP works.
  */
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
+  // A hung dependency must yield a fast 503, not block the probe until the
+  // orchestrator's own timeout kills it.
+  private static readonly CHECK_TIMEOUT_MS = 2_000;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
@@ -51,11 +60,8 @@ export class HealthController {
   }
 
   private async checkReadiness(res: Response) {
-    const checks = {
-      postgres: await this.checkPostgres(),
-      redis: await this.checkRedis(),
-      rabbitmq: this.checkRabbitmq(),
-    };
+    const [postgres, redis] = await Promise.all([this.checkPostgres(), this.checkRedis()]);
+    const checks = { postgres, redis, rabbitmq: this.checkRabbitmq() };
 
     const ok = this.isHealthy(checks);
     if (!ok) {
@@ -77,7 +83,11 @@ export class HealthController {
 
   private async checkPostgres(): Promise<string> {
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      await withTimeout(
+        Promise.resolve(this.prisma.$queryRaw`SELECT 1`),
+        HealthController.CHECK_TIMEOUT_MS,
+        'Postgres readiness check',
+      );
       return 'ok';
     } catch {
       return 'error';
@@ -86,7 +96,11 @@ export class HealthController {
 
   private async checkRedis(): Promise<string> {
     try {
-      await this.redis.ping();
+      await withTimeout(
+        this.redis.ping(),
+        HealthController.CHECK_TIMEOUT_MS,
+        'Redis readiness check',
+      );
       return 'ok';
     } catch {
       return 'error';

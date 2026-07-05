@@ -11,6 +11,17 @@ export const DOMAIN_ERROR_STATUS: Record<string, number> = {
   internal_error: HttpStatus.INTERNAL_SERVER_ERROR,
 };
 
+/**
+ * Business error thrown by services; the API boundary (AllExceptionsFilter)
+ * turns it into the standard error JSON — controllers do no mapping.
+ *
+ *   throw new DomainException('not_found', 'Order not found');
+ *   throw new DomainException('conflict', 'SKU already exists', undefined, { sku });
+ *
+ * `code` is the stable machine-readable contract (clients switch on it);
+ * `message` is for humans and may change freely. New codes: add them to
+ * DOMAIN_ERROR_STATUS above so they map to the right HTTP status.
+ */
 export class DomainException extends HttpException {
   constructor(
     public readonly code: string,

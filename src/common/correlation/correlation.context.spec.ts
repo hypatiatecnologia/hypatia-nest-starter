@@ -14,6 +14,20 @@ describe('resolveCorrelationId', () => {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     );
   });
+
+  it('replaces ids with unsafe characters by a generated uuid', () => {
+    expect(resolveCorrelationId('bad id\nwith newline')).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(resolveCorrelationId('<script>alert(1)</script>')).toMatch(/^[0-9a-f-]{36}$/i);
+  });
+
+  it('replaces oversized ids by a generated uuid', () => {
+    expect(resolveCorrelationId('a'.repeat(129))).toMatch(/^[0-9a-f-]{36}$/i);
+    expect(resolveCorrelationId('a'.repeat(128))).toBe('a'.repeat(128));
+  });
+
+  it('skips invalid array entries and uses the first valid one', () => {
+    expect(resolveCorrelationId(['bad id!', 'good-id_1'])).toBe('good-id_1');
+  });
 });
 
 describe('CorrelationContext', () => {

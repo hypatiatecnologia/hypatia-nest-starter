@@ -14,6 +14,7 @@ import { discoverFeatureModules } from './common/module-discovery/module-discove
 import { HttpClientModule } from './http/http-client.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
+import { RedisService } from './redis/redis.service';
 import { RabbitMqModule } from './rabbitmq/rabbitmq.module';
 import { HealthController } from './health.controller';
 
@@ -30,10 +31,18 @@ import { HealthController } from './health.controller';
  *
  * Feature modules under `src/modules/<feature>/<feature>.module.ts` are
  * registered automatically — no manual import in this file.
+ *
+ * Why a dynamic `register()` instead of a plain static `@Module()`? Feature
+ * modules are discovered on disk at bootstrap, and that discovery is async —
+ * decorators cannot await. main.ts and the e2e tests both call
+ * `AppModule.register()`, so tests always boot the exact production wiring.
  */
 @Module({})
 export class AppModule {
   static async register(): Promise<DynamicModule> {
+    // Order matters: hydrate process.env from .env, validate it (fail fast on
+    // bad config), then discover feature modules — some need the typed config
+    // (e.g. ExampleModule switches controllers/consumers on rabbitmqMode).
     loadDotenv({ quiet: true });
     const appConfig = loadConfiguration();
     const featureModules = await discoverFeatureModules({ appConfig });
@@ -52,6 +61,8 @@ export class AppModule {
               process.env.NODE_ENV !== 'production'
                 ? { target: 'pino-pretty', options: { singleLine: true } }
                 : undefined,
+            // Reuse the caller's correlation id as pino's request id: one grep
+            // then finds gateway, API, and worker logs for the same request.
             genReqId: (req) => {
               const header = req.headers[CORRELATION_ID_HEADER];
               const value = Array.isArray(header) ? header[0] : header;
@@ -59,24 +70,30 @@ export class AppModule {
             },
             customProps: (req) => ({ correlationId: req.id }),
             redact: {
+              // Covers top-level body fields and one nesting level (fast-redact
+              // allows a single `*` per path). For deeper structures, redact
+              // explicitly with redactPayload before logging.
               paths: [
                 'req.headers.authorization',
                 'req.headers["x-api-key"]',
-                'req.body.password',
-                'req.body.cpf',
-                'req.body.token',
-                'req.body.accessToken',
-                'req.body.refreshToken',
-                'req.body.creditCard',
-                'req.body.apiKey',
+                ...[
+                  'password',
+                  'cpf',
+                  'token',
+                  'accessToken',
+                  'refreshToken',
+                  'creditCard',
+                  'apiKey',
+                ].flatMap((field) => [`req.body.${field}`, `req.body.*.${field}`]),
               ],
               censor: '[REDACTED]',
             },
           },
         }),
         ThrottlerModule.forRootAsync({
-          inject: [ConfigService],
-          useFactory: (config: ConfigService<AppConfig, true>) => ({
+          imports: [RedisModule],
+          inject: [ConfigService, RedisService],
+          useFactory: (config: ConfigService<AppConfig, true>, redis: RedisService) => ({
             throttlers: [
               {
                 ttl: config.get('throttleTtlMs', { infer: true }),
@@ -85,12 +102,10 @@ export class AppModule {
             ],
             // Redis storage in production so the limit holds across replicas;
             // in-memory elsewhere (tests/dev must not require a live Redis).
+            // Reuses the RedisService connection — closed on shutdown, no
+            // second unmanaged client.
             ...(config.get('nodeEnv', { infer: true }) === 'production'
-              ? {
-                  storage: new ThrottlerStorageRedisService(
-                    config.get('redisUrl', { infer: true }),
-                  ),
-                }
+              ? { storage: new ThrottlerStorageRedisService(redis.getClient()) }
               : {}),
           }),
         }),

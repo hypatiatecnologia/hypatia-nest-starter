@@ -20,6 +20,8 @@ import { AppConfig } from './config/configuration';
  * Health probe: http://localhost:3000/health
  */
 async function bootstrap() {
+  // bufferLogs holds early log lines in memory until useLogger() below swaps in
+  // pino — so even the very first startup logs come out as structured JSON.
   const app = await NestFactory.create(await AppModule.register(), { bufferLogs: true });
 
   // Graceful shutdown on SIGTERM/SIGINT (Docker, k8s rolling deploys).
@@ -42,6 +44,8 @@ async function bootstrap() {
     app.getHttpAdapter().getInstance().set('trust proxy', trustProxy);
   }
 
+  // Swagger only outside production: the docs endpoint exposes the full API
+  // surface (routes, DTOs, auth schemes) — useful for devs, a gift to attackers.
   if (nodeEnv !== 'production') {
     const swagger = new DocumentBuilder()
       .setTitle(`${serviceName} API`)
@@ -67,4 +71,8 @@ async function bootstrap() {
   }
 }
 
-bootstrap();
+bootstrap().catch((error: unknown) => {
+  // DI (and the pino logger) may not exist when bootstrap fails — plain stderr.
+  console.error('Fatal error during bootstrap:', error);
+  process.exit(1);
+});

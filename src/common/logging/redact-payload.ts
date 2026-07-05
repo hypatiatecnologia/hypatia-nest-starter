@@ -14,9 +14,19 @@ const DEFAULT_SENSITIVE_FIELDS = [
   'api_key',
 ];
 
+// Fixed mask — a length-preserving mask (e.g. '*'.repeat(len)) would leak the
+// secret's length in logs.
+const REDACTED = '[REDACTED]';
+
 /**
  * Recursively masks sensitive field values in objects before logging.
  * Field names are matched case-insensitively against the provided list.
+ *
+ * When to use: pino already auto-redacts known `req.body` paths (app.module.ts),
+ * but only down to one nesting level. Call this yourself when logging arbitrary
+ * or deeply nested payloads (e.g. consumed events):
+ *
+ *   this.logger.log({ payload: redactPayload(event.payload) }, 'processing');
  */
 export function redactPayload<T extends Record<string, unknown>>(
   target: T,
@@ -39,7 +49,7 @@ export function redactPayload<T extends Record<string, unknown>>(
 
     const entries = Object.entries(value as Record<string, unknown>).map(([key, nested]) => {
       if (normalizedFields.has(key.toLowerCase()) && nested !== undefined && nested !== null) {
-        return [key, '*'.repeat(String(nested).length)];
+        return [key, REDACTED];
       }
 
       return [key, redactNode(nested)];

@@ -14,6 +14,11 @@ export interface JwtVerifyOptions {
  * Enforced: signature, algorithm pinned to HS256, `exp` required (no eternal
  * tokens), 5s clock tolerance, and optional `iss`/`aud` claims.
  *
+ * Why pin the algorithm: honoring whatever `alg` the token header declares is
+ * a classic vulnerability (alg=none skips verification entirely; RS256 public
+ * keys reused as HS256 secrets forge valid signatures). We decide the
+ * algorithm, never the token.
+ *
  * Returns the verified payload, or null when the token is invalid.
  */
 export async function verifyHs256Jwt(
