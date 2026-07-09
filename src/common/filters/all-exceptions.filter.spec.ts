@@ -77,6 +77,33 @@ describe('AllExceptionsFilter', () => {
     );
   });
 
+  it('strips query string from path so tokens are not echoed to clients', () => {
+    const { status, json } = createHost();
+    const hostWithQuery = {
+      switchToHttp: () => ({
+        getResponse: () => ({ status }),
+        getRequest: () => ({
+          method: 'GET',
+          url: '/example?token=secret-value&foo=1',
+          correlationId: undefined,
+        }),
+      }),
+    } as unknown as ArgumentsHost;
+
+    createFilter().catch(new BadRequestException('invalid input'), hostWithQuery);
+
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: '/example',
+      }),
+    );
+    expect(json).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: expect.stringContaining('token='),
+      }),
+    );
+  });
+
   it('maps unknown errors to 500 with internal_error code', () => {
     const { host, status, json } = createHost();
 
@@ -100,8 +127,35 @@ describe('AllExceptionsFilter', () => {
     filter.catch(new Error('db connection lost'), host);
 
     expect(mockLogger.error).toHaveBeenCalledWith(
-      expect.objectContaining({ correlationId: 'trace-xyz' }),
+      expect.objectContaining({ correlationId: 'trace-xyz', url: '/example' }),
       expect.stringContaining('internal error'),
+    );
+  });
+
+  it('redacts query string from 5xx log context', () => {
+    const mockLogger = createMockLogger();
+    const filter = new AllExceptionsFilter(mockLogger);
+    const status = jest.fn().mockReturnValue({ json: jest.fn() });
+    const host = {
+      switchToHttp: () => ({
+        getResponse: () => ({ status }),
+        getRequest: () => ({
+          method: 'GET',
+          url: '/orders?accessToken=leak-me',
+          correlationId: 'trace-xyz',
+        }),
+      }),
+    } as unknown as ArgumentsHost;
+
+    filter.catch(new Error('boom'), host);
+
+    expect(mockLogger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ url: '/orders' }),
+      expect.stringContaining('GET /orders — internal error'),
+    );
+    expect(mockLogger.error).not.toHaveBeenCalledWith(
+      expect.objectContaining({ url: expect.stringContaining('accessToken') }),
+      expect.anything(),
     );
   });
 });

@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { AppConfig } from '../config/configuration';
@@ -17,6 +17,7 @@ import { AppConfig } from '../config/configuration';
  */
 @Injectable()
 export class RedisService implements OnModuleDestroy {
+  private readonly logger = new Logger(RedisService.name);
   private readonly client: Redis;
 
   constructor(config: ConfigService<AppConfig, true>) {
@@ -26,6 +27,12 @@ export class RedisService implements OnModuleDestroy {
       // idempotency claims instead of surfacing an error.
       maxRetriesPerRequest: 3,
       commandTimeout: 5_000,
+    });
+
+    // ioredis emits 'error' on connection failures; without a listener Node
+    // treats it as an unhandled EventEmitter error and can crash the process.
+    this.client.on('error', (error: Error) => {
+      this.logger.error(`Redis error: ${error.message}`);
     });
   }
 

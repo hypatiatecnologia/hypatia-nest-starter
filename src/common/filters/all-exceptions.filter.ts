@@ -40,16 +40,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const body = this.resolveBody(exception);
     const code = resolveErrorCode(exception);
     const correlationId = request.correlationId ?? CorrelationContext.get();
+    // Strip query string — tokens/PII in ?query must not echo to clients or logs.
+    const path = sanitizeRequestPath(request.url);
 
     if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
       this.logger.error(
         {
           err: exception instanceof Error ? exception : new Error(String(exception)),
           method: request.method,
-          url: request.url,
+          url: path,
           correlationId,
         },
-        `${request.method} ${request.url} — internal error`,
+        `${request.method} ${path} — internal error`,
       );
     }
 
@@ -58,7 +60,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       code,
       ...body,
       ...(correlationId ? { correlationId } : {}),
-      path: request.url,
+      path,
       timestamp: new Date().toISOString(),
     });
   }
@@ -90,4 +92,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     return { message: exception.message };
   }
+}
+
+function sanitizeRequestPath(url: string): string {
+  const separator = url.indexOf('?');
+  return separator === -1 ? url : url.slice(0, separator);
 }

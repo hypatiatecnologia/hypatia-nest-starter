@@ -84,7 +84,7 @@ export class HealthController {
   private async checkPostgres(): Promise<string> {
     try {
       await withTimeout(
-        Promise.resolve(this.prisma.$queryRaw`SELECT 1`),
+        this.prisma.$queryRaw`SELECT 1`,
         HealthController.CHECK_TIMEOUT_MS,
         'Postgres readiness check',
       );

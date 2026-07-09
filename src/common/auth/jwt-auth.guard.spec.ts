@@ -93,6 +93,16 @@ describe('JwtAuthGuard', () => {
     await expect(guard.canActivate(context)).rejects.toThrow(DomainException);
   });
 
+  it('rejects bearer tokens without a subject claim', async () => {
+    (reflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
+    mockConfig({ argusJwtSecret: 'jwt-secret' });
+
+    const token = createToken({ exp: Math.floor(Date.now() / 1000) + 60 }, 'jwt-secret');
+    const { context } = buildContext({ authorization: `Bearer ${token}` });
+
+    await expect(guard.canActivate(context)).rejects.toThrow(DomainException);
+  });
+
   it('allows requests with a valid internal API key', async () => {
     (reflector.getAllAndOverride as jest.Mock).mockReturnValue(false);
     mockConfig({ internalApiKey: 'local-api-key' });

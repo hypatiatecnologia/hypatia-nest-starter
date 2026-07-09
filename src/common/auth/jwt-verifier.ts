@@ -11,8 +11,9 @@ export interface JwtVerifyOptions {
 /**
  * Verifies an HS256 JWT issued by Argus (or compatible issuers) via `jose`.
  *
- * Enforced: signature, algorithm pinned to HS256, `exp` required (no eternal
- * tokens), 5s clock tolerance, and optional `iss`/`aud` claims.
+ * Enforced: signature, algorithm pinned to HS256, `exp` and `sub` required
+ * (no eternal or anonymous tokens), 5s clock tolerance, and optional
+ * `iss`/`aud` claims.
  *
  * Why pin the algorithm: honoring whatever `alg` the token header declares is
  * a classic vulnerability (alg=none skips verification entirely; RS256 public
@@ -29,11 +30,18 @@ export async function verifyHs256Jwt(
   try {
     const { payload } = await jwtVerify(token, createSecretKey(Buffer.from(secret, 'utf8')), {
       algorithms: ['HS256'],
-      requiredClaims: ['exp'],
+      requiredClaims: ['exp', 'sub'],
       clockTolerance: 5,
       ...(options.issuer ? { issuer: options.issuer } : {}),
       ...(options.audience ? { audience: options.audience } : {}),
     });
+
+    // requiredClaims ensures presence; reject empty/whitespace subjects that
+    // would leave AuthenticatedUser without a usable identity.
+    if (typeof payload.sub !== 'string' || !payload.sub.trim()) {
+      return null;
+    }
+
     return payload;
   } catch {
     return null;

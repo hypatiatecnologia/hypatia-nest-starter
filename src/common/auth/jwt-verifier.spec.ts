@@ -35,6 +35,19 @@ describe('verifyHs256Jwt', () => {
     expect(await verifyHs256Jwt(token, secret)).toBeNull();
   });
 
+  it('rejects tokens without sub (no anonymous identity)', async () => {
+    const token = createToken({ exp: futureExp() }, secret);
+    expect(await verifyHs256Jwt(token, secret)).toBeNull();
+  });
+
+  it('rejects tokens with empty or whitespace-only sub', async () => {
+    const empty = createToken({ sub: '', exp: futureExp() }, secret);
+    const blank = createToken({ sub: '   ', exp: futureExp() }, secret);
+
+    expect(await verifyHs256Jwt(empty, secret)).toBeNull();
+    expect(await verifyHs256Jwt(blank, secret)).toBeNull();
+  });
+
   it('rejects malformed tokens', async () => {
     expect(await verifyHs256Jwt('not-a-jwt', secret)).toBeNull();
   });
