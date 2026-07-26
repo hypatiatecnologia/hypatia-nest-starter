@@ -2,7 +2,7 @@
 
 ## Current decision
 
-**Pending remote evidence.** Local application and exposure gates pass. Visibility, template mode, metadata, release, and profile integration are authorized by the owner but must wait for three consecutive green CI executions on the release branch.
+**Pass.** Local application and exposure gates pass, and three consecutive remote CI executions are green. Visibility, template mode, metadata, release, and profile integration are authorized by the owner.
 
 ## Local evidence
 
@@ -23,9 +23,9 @@
 | --- | --- | --- |
 | [30211622037](https://github.com/hypatiatecnologia/hypatia-nest-starter/actions/runs/30211622037) | `ba4c524` | Pass |
 | [30211732379](https://github.com/hypatiatecnologia/hypatia-nest-starter/actions/runs/30211732379) | `c2fd0ff` | Pass |
-| 3 | Pending | Pending |
+| [30211864014](https://github.com/hypatiatecnologia/hypatia-nest-starter/actions/runs/30211864014) | `92cb479` | Pass |
 
-The gate stays closed until all required jobs pass three times consecutively. Any failure resets the sequence.
+All required jobs passed three times consecutively. Any later regression closes the gate again.
 
 ## Authorized rollout after gate
 
