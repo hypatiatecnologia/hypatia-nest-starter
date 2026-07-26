@@ -1,5 +1,7 @@
 # Hypatia Nest Starter
 
+[![Hypatia Nest Starter social preview](assets/social-preview.png)](https://github.com/hypatiatecnologia/hypatia-nest-starter)
+
 A Hypatia template for building observable, event-driven NestJS services with **Node.js 22**, **NestJS 11**, PostgreSQL, Redis, and optional RabbitMQ messaging.
 
 > Status: public template candidate. It provides tested defaults and examples, but every derived service still needs its own threat model, capacity planning, dependency updates, and production review.
