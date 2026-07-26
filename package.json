@@ -24,6 +24,7 @@
     "prepare": "husky",
     "setup:local": "bash scripts/setup-local.sh",
     "test": "jest",
+    "test:scripts": "node --test test/scripts/*.test.cjs",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "create-service": "bash scripts/create-service.sh"
