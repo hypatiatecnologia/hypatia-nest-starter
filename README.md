@@ -1,6 +1,6 @@
 # Hypatia Nest Starter
 
-Boilerplate for Hypatia microservices: **NestJS 10**, **PostgreSQL** (Prisma), **Redis**, and **RabbitMQ** (optional publisher or consumer).
+Boilerplate for Hypatia microservices: **NestJS 11** on **Node.js 22**, **PostgreSQL** (Prisma), **Redis**, and **RabbitMQ** (optional publisher or consumer).
 
 Extracted from the `hades-vault` (Hades) infrastructure patterns. Use this repo to bootstrap new Pantheon services — not as a fork of the LGPD vault.
 

@@ -1,6 +1,7 @@
 {
   "name": "hypatia-nest-starter",
   "version": "0.1.0",
+  "private": true,
   "description": "Hypatia NestJS microservice starter (PostgreSQL + Redis + RabbitMQ)",
   "license": "MIT",
   "engines": {
