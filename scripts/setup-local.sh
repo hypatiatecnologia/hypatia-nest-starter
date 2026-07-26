@@ -7,6 +7,23 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+require_command() {
+  local command_name="$1"
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    echo "Missing prerequisite: ${command_name}"
+    exit 1
+  fi
+}
+
+require_command docker
+require_command npm
+require_command npx
+
+if ! docker compose version >/dev/null 2>&1; then
+  echo "Missing prerequisite: Docker Compose v2 (docker compose)"
+  exit 1
+fi
+
 INFRA_PORTS=(5432 6379 5672)
 
 infra_port_open() {

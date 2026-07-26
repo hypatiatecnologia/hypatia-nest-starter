@@ -46,7 +46,10 @@ jobs:
           cache: npm
 
       - run: npm ci --ignore-scripts
-      - run: npm audit --audit-level=high
+      # Runtime dependencies are the deployable attack surface. Tooling-only
+      # advisories remain visible to Dependabot without blocking releases on
+      # upstream-only fixes.
+      - run: npm audit --omit=dev --audit-level=high
 
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

@@ -23,6 +23,19 @@ SERVICE_NAME="$1"
 ARCHETYPE="${2:-api}"
 TARGET_DIR="$(cd "$(dirname "$0")/.." && pwd)/../${SERVICE_NAME}"
 STARTER_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+STAGING_DIR="${TARGET_DIR}.tmp.$$"
+
+for command_name in rsync sed git; do
+  if ! command -v "$command_name" >/dev/null 2>&1; then
+    echo "Missing prerequisite: ${command_name}"
+    exit 1
+  fi
+done
+
+if [[ ! "$SERVICE_NAME" =~ ^[a-z][a-z0-9-]*$ || "$SERVICE_NAME" == *- ]]; then
+  echo "Invalid service name: use lowercase letters, numbers, and internal hyphens."
+  exit 1
+fi
 
 if [[ "$ARCHETYPE" != "api" && "$ARCHETYPE" != "worker" ]]; then
   echo "Invalid archetype: $ARCHETYPE"
@@ -34,6 +47,11 @@ if [[ -e "$TARGET_DIR" ]]; then
   exit 1
 fi
 
+cleanup() {
+  rm -rf "$STAGING_DIR"
+}
+trap cleanup EXIT
+
 echo "Creating ${SERVICE_NAME} (${ARCHETYPE}) at ${TARGET_DIR}"
 
 rsync -a \
@@ -42,11 +60,11 @@ rsync -a \
   --exclude coverage \
   --exclude .env \
   --exclude .git \
-  "$STARTER_DIR/" "$TARGET_DIR/"
+  "$STARTER_DIR/" "$STAGING_DIR/"
 
 ENV_SOURCE="${STARTER_DIR}/archetypes/${ARCHETYPE}.env.example"
-cp "$ENV_SOURCE" "${TARGET_DIR}/.env.example"
-cp "$ENV_SOURCE" "${TARGET_DIR}/.env"
+cp "$ENV_SOURCE" "${STAGING_DIR}/.env.example"
+cp "$ENV_SOURCE" "${STAGING_DIR}/.env"
 
 replace() {
   local file="$1"
@@ -64,22 +82,25 @@ replace() {
   fi
 }
 
-replace "${TARGET_DIR}/package.json"
-replace "${TARGET_DIR}/.env.example"
-replace "${TARGET_DIR}/.env"
-replace "${TARGET_DIR}/README.md"
+replace "${STAGING_DIR}/package.json"
+replace "${STAGING_DIR}/.env.example"
+replace "${STAGING_DIR}/.env"
+replace "${STAGING_DIR}/README.md"
 
 # Unique local API key per service — the shared placeholder always ends up
 # forgotten in some .env. The .env.example keeps the placeholder on purpose.
 if command -v openssl >/dev/null 2>&1; then
   GENERATED_KEY="$(openssl rand -hex 32)"
-  sed -i.bak "s/INTERNAL_API_KEY=change-me-local-dev/INTERNAL_API_KEY=${GENERATED_KEY}/" "${TARGET_DIR}/.env"
-  rm -f "${TARGET_DIR}/.env.bak"
+  sed -i.bak "s/INTERNAL_API_KEY=change-me-local-dev/INTERNAL_API_KEY=${GENERATED_KEY}/" "${STAGING_DIR}/.env"
+  rm -f "${STAGING_DIR}/.env.bak"
   echo "Generated unique INTERNAL_API_KEY in .env"
 fi
 
-cd "$TARGET_DIR"
+cd "$STAGING_DIR"
 git init -q
+cd "$STARTER_DIR"
+mv "$STAGING_DIR" "$TARGET_DIR"
+trap - EXIT
 echo "Done. Next steps (see docs/onboarding/PRIMEIROS-PASSOS.md — Trilha C):"
 echo "  cd ${TARGET_DIR}"
 echo "  # Open in Cursor — .cursor/ config included; .env already has localhost hostnames"

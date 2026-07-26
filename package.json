@@ -1,6 +1,7 @@
 {
   "name": "hypatia-nest-starter",
   "version": "0.1.0",
+  "private": true,
   "description": "Hypatia NestJS microservice starter (PostgreSQL + Redis + RabbitMQ)",
   "license": "MIT",
   "engines": {
@@ -23,6 +24,7 @@
     "prepare": "husky",
     "setup:local": "bash scripts/setup-local.sh",
     "test": "jest",
+    "test:scripts": "node --test test/scripts/*.test.cjs",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "create-service": "bash scripts/create-service.sh"

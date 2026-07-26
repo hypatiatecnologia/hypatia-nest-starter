@@ -2,25 +2,23 @@
 
 ## Supported versions
 
-This repository is a **starter template**. Only the latest commit on `main`
-receives security fixes. Services scaffolded with `create-service` are
-snapshots — they do NOT receive fixes automatically. Track this repo's
-`CHANGELOG.md` and apply relevant patches to derived services.
+| Version | Supported |
+| --- | --- |
+| Latest `0.1.x` release and `main` | Yes |
+| Older snapshots | No |
 
-## Reporting a vulnerability
+This repository distributes a template, not a runtime service or npm package. A project created with `create-service` is an independent snapshot and does not receive fixes automatically. Owners of derived services must monitor releases and deliberately apply relevant changes.
 
-Please do **not** open a public issue for security problems.
+## Report a vulnerability
 
-- Email: contatodeanderson@gmail.com with subject `[SECURITY] hypatia-nest-starter`
-- Include: affected file/endpoint, reproduction steps, and impact assessment.
+Use GitHub's **Report a vulnerability** form in the Security tab. It creates a private advisory visible to the Hypatia maintainers. Do not open a public issue with exploit details, credentials, or personal data.
 
-You will receive an acknowledgement within 72 hours. Coordinated disclosure:
-we ask for up to 90 days to ship a fix before public disclosure.
+Include the affected revision, reproduction steps, likely impact, and any suggested mitigation. Hypatia will evaluate reports according to available maintainer capacity; this policy does not promise an acknowledgement or remediation deadline.
 
-## Baseline expectations for derived services
+## Baseline for derived services
 
-- Rotate `INTERNAL_API_KEY` and set `ARGUS_JWT_SECRET` (+ `ARGUS_JWT_ISSUER`/
-  `ARGUS_JWT_AUDIENCE`) before any deployment.
-- Set `TRUST_PROXY` when running behind a gateway/reverse proxy.
-- Keep `npm audit --audit-level=high` green in CI (already enforced).
-- Never commit `.env` — only `.env.example` and `archetypes/*.env.example`.
+- Replace every example API key, JWT secret, database password, and broker credential.
+- Configure issuer, audience, proxy trust, CORS, rate limits, and secret management for the deployment.
+- Keep runtime dependency, secret, filesystem, and container scans green.
+- Review the application threat model and authorization policy; the examples are not a production certification.
+- Never commit `.env` or deployment credentials.
