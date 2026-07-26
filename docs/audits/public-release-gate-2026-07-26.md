@@ -22,7 +22,7 @@
 | Run | Revision | Result |
 | --- | --- | --- |
 | [30211622037](https://github.com/hypatiatecnologia/hypatia-nest-starter/actions/runs/30211622037) | `ba4c524` | Pass |
-| 2 | Pending | Pending |
+| [30211732379](https://github.com/hypatiatecnologia/hypatia-nest-starter/actions/runs/30211732379) | `c2fd0ff` | Pass |
 | 3 | Pending | Pending |
 
 The gate stays closed until all required jobs pass three times consecutively. Any failure resets the sequence.
