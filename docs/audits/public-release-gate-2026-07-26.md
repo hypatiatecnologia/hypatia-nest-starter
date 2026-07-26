@@ -21,7 +21,7 @@
 
 | Run | Revision | Result |
 | --- | --- | --- |
-| 1 | Pending | Pending |
+| [30211622037](https://github.com/hypatiatecnologia/hypatia-nest-starter/actions/runs/30211622037) | `ba4c524` | Pass |
 | 2 | Pending | Pending |
 | 3 | Pending | Pending |
 
