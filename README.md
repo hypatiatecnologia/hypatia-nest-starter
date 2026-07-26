@@ -1,302 +1,115 @@
 # Hypatia Nest Starter
 
-Boilerplate for Hypatia microservices: **NestJS 11** on **Node.js 22**, **PostgreSQL** (Prisma), **Redis**, and **RabbitMQ** (optional publisher or consumer).
+A Hypatia template for building observable, event-driven NestJS services with **Node.js 22**, **NestJS 11**, PostgreSQL, Redis, and optional RabbitMQ messaging.
 
-Extracted from the `hades-vault` (Hades) infrastructure patterns. Use this repo to bootstrap new Pantheon services — not as a fork of the LGPD vault.
+> Status: public template candidate. It provides tested defaults and examples, but every derived service still needs its own threat model, capacity planning, dependency updates, and production review.
+
+## What it demonstrates
+
+- REST APIs with validation, Swagger, structured errors, and correlation IDs
+- PostgreSQL access through Prisma
+- Redis-backed cache and consumer deduplication
+- RabbitMQ publisher and consumer modes with dead-letter queues
+- Liveness and readiness probes
+- Structured Pino logging with sensitive-field redaction
+- Graceful shutdown, rate limiting, CI security checks, and a multi-stage container image
 
 ## Archetypes
 
-| Archetype | `RABBITMQ_MODE` | HTTP | Use case |
+| Archetype | `RABBITMQ_MODE` | HTTP surface | Typical role |
 | --- | --- | --- | --- |
-| **api** | `publisher` | Full REST + Swagger | Athena, Midas, Nemesis |
-| **worker** | `consumer` | Health only | Hermes |
-| **off** | `off` | Full REST | Services without messaging (early Hades) |
+| `api` | `publisher` | REST, Swagger, health | API that emits domain events |
+| `worker` | `consumer` | Health only | Background event processor |
+| `off` | `off` | REST, Swagger, health | API without messaging |
 
-See `archetypes/api.env.example` and `archetypes/worker.env.example`.
-
-## Deployment strategies
-
-This starter supports two topologies without changing the application code — only configuration and the number of running processes differ.
-
-### Microservices (default Pantheon topology)
-
-Each bounded context lives in its own repository and process, communicating via REST (sync) or RabbitMQ (async).
-
-```
-[Cerberus Gateway]
-      │
-      ├─ REST ──► [Argus / api]
-      ├─ REST ──► [Athena / api]  ──publish──► hypatia.events ──► [Hermes / worker]
-      └─ REST ──► [Midas  / api]
-```
-
-Scaffold a new service from this starter:
-
-```bash
-npm run create-service -- <service-name> [api|worker]
-```
-
-Each service gets its own Prisma schema, Redis namespace, RabbitMQ queue, and `.cursor/` config. Set `RABBITMQ_MODE` per archetype (`publisher` for api, `consumer` for worker).
-
-### Modular monolith
-
-All domain modules run inside a **single NestJS process and repository**. Communication between features happens via NestJS dependency injection instead of network calls.
-
-**Minimum changes required:**
-
-1. Set `RABBITMQ_MODE=off` in `.env` — no AMQP connection is established.
-2. Add each feature module under `src/modules/<feature>/` as usual — auto-discovery picks them up automatically.
-3. For cross-module calls, import the neighboring module in your feature's `@Module({ imports: [...] })` instead of publishing events.
-4. If you need loose coupling between modules without HTTP/AMQP, use [`@nestjs/event-emitter`](https://docs.nestjs.com/techniques/events) for in-process events.
-
-**What stays exactly the same:** module structure, Prisma, Redis, Correlation ID middleware, error handling, Swagger, and all Cursor rules.
-
-**Extracting a module to a microservice later:**
-
-Because each `src/modules/<feature>/` is already self-contained, extraction is surgical:
-
-1. Move the folder to a new repo scaffolded with `create-service`.
-2. Replace direct service imports with `HttpClientService` calls or RabbitMQ events.
-3. Set `RABBITMQ_MODE` and infrastructure env vars in the new service.
-
-## Onboarding (novos devs)
-
-**First time?** Start with [docs/onboarding/PRIMEIROS-PASSOS.md](docs/onboarding/PRIMEIROS-PASSOS.md) (~10 min: tests without Docker, live API, `create-service` smoke check).
-
-Structured learning path in Portuguese:
-
-| Doc | Content |
-| --- | --- |
-| [docs/onboarding/PRIMEIROS-PASSOS.md](docs/onboarding/PRIMEIROS-PASSOS.md) | Minimal setup — starter + scaffold |
-| [docs/onboarding/TROUBLESHOOTING.md](docs/onboarding/TROUBLESHOOTING.md) | Common setup errors |
-| [docs/onboarding/ONBOARDING.md](docs/onboarding/ONBOARDING.md) | 4-week roadmap + hands-on exercises |
-| [docs/onboarding/GUIA-RAPIDO.md](docs/onboarding/GUIA-RAPIDO.md) | Daily reference — commands, new module |
-| [docs/onboarding/GLOSSARIO.md](docs/onboarding/GLOSSARIO.md) | Pantheon and NestJS glossary |
-| [docs/onboarding/MAPA-MENTAL.md](docs/onboarding/MAPA-MENTAL.md) | Request → event flow diagrams |
-
-Cursor command `/onboard` automates local setup; use both for first-time contributors.
-
-## Codebase tour
-
-Source files include onboarding comments — start with:
-
-| File | What you learn |
-| --- | --- |
-| `src/main.ts` | Bootstrap, security, Swagger |
-| `src/app.module.ts` | Infra wiring + auto-discovery of feature modules |
-| `src/config/configuration.ts` | Env vars and `RABBITMQ_MODE` |
-| `src/common/correlation/` | `x-correlation-id` middleware + AsyncLocalStorage |
-| `src/rabbitmq/rabbitmq.service.ts` | Event envelope, publish/consume, DLQ |
-| `src/modules/example/` | Api vs worker patterns (delete when done) |
-
-## Cursor (IDE padrão Hypatia)
-
-Abra o repo no **Cursor** — a config já vem em `.cursor/`:
-
-| Recurso | Uso |
-| --- | --- |
-| `.cursor/rules/` | Rules de arquitetura, NestJS, segurança, Pantheon (`hypatia-ecosystem`) |
-| `.cursor/commands/` | `/onboard`, `/commit`, `/pr`, `/review-nest-patterns`, `/explain`, … |
-| `.cursor/hooks/` | Bloqueio de `rm -rf` perigoso e redaction de secrets no prompt |
-| `.cursorignore` | Exclui `.env` e credenciais do contexto do agente |
-
-Guia completo: [.cursor/README.md](.cursor/README.md) · Guardrails do Agent: [.cursor/AGENTS.md](.cursor/AGENTS.md)
-
-Novos serviços criados com `create-service` **herdam** esta pasta automaticamente.
-
-## Correlation ID
-
-Every HTTP request gets a trace id via header **`x-correlation-id`**:
-
-- Send your own id to correlate with upstream (Cerberus, client apps).
-- When omitted, the service generates a UUID and echoes it on the response.
-- Propagates to Pino logs (`correlationId`), error JSON, and RabbitMQ events.
-
-```bash
-curl -H 'x-correlation-id: checkout-abc' http://localhost:3000/health -v
-```
-
-Implementation: `src/common/correlation/` · wired in `main.ts` and `app.module.ts`.
-
-## Prerequisites
-
-| Tool | Version / notes |
-| --- | --- |
-| Node.js | 22 LTS — `nvm use` (see [.nvmrc](.nvmrc)) |
-| Docker | Docker Compose v2 — Postgres, Redis, RabbitMQ for local dev |
-| Ports free | 3000 (API), 5432, 6379, 5672, 15672 |
-
-Quick validation without Docker: `npm ci && npm test` (see [PRIMEIROS-PASSOS.md](docs/onboarding/PRIMEIROS-PASSOS.md)).
+The exchange name `hypatia.events` is part of the example runtime contract. Service and queue names are configuration.
 
 ## Quick start
 
-Pick **one** path. Which `.env` to use:
-
-| You run the API… | Copy this to `.env` |
-| --- | --- |
-| On your machine (`npm run start:dev`) | `archetypes/api.env.example` (`localhost` hostnames) |
-| Inside Docker (`docker compose up --build`) | `.env.example` (`postgres` / `redis` / `rabbitmq` service names) |
-
-Or run the hybrid setup script: `npm run setup:local` then `npm run start:dev`.
-
-### Hybrid dev (recommended)
-
-Infra in Docker, Nest on the host — matches day-to-day Pantheon development.
+Requirements: Node.js 22, npm, and Docker with Compose.
 
 ```bash
+git clone https://github.com/hypatiatecnologia/hypatia-nest-starter.git
+cd hypatia-nest-starter
 nvm use
+npm ci
+npm test
 cp archetypes/api.env.example .env
 docker compose up -d --wait postgres redis rabbitmq
-npm ci
 npx prisma generate
 npx prisma migrate deploy
 npm run start:dev
 ```
 
-Verify:
+Then inspect:
+
+- Swagger: `http://localhost:3000/docs/api`
+- Liveness: `http://localhost:3000/health/live`
+- Readiness: `http://localhost:3000/health/ready`
+- Compatibility health endpoint: `http://localhost:3000/health`
+- RabbitMQ management: `http://localhost:15672`
+
+The local setup command performs the same dependency and migration flow:
 
 ```bash
-curl -s http://localhost:3000/health | head -c 200
+npm run setup:local
 ```
 
-- API: http://localhost:3000
-- Swagger: http://localhost:3000/docs/api
-- Health: http://localhost:3000/health (liveness: `/health/live` · readiness: `/health/ready`)
-- RabbitMQ UI: http://localhost:15672 (hypatia / hypatia-rabbitmq-dev — ver RABBITMQ_USER/RABBITMQ_PASSWORD no .env)
+## Create a derived service
 
-Stuck? See [docs/onboarding/TROUBLESHOOTING.md](docs/onboarding/TROUBLESHOOTING.md).
-
-### Full stack in Docker
-
-No `npm run start:dev` on the host — the `api` service runs in a container.
+Run the scaffold from a clone of this repository:
 
 ```bash
-cp .env.example .env
-docker compose up --build
+npm run create-service -- example-api api
+npm run create-service -- example-worker worker
 ```
 
-Same URLs as above once containers are healthy.
+The command creates a sibling directory, selects the requested archetype, replaces template identifiers, generates a local development API key when OpenSSL is available, and initializes a new Git repository. It never creates a remote or pushes code.
 
-Optional: set `RABBITMQ_MODE=off` in `.env` if you only need Postgres + Redis for a first smoke test (RabbitMQ health shows `disabled`).
+## Example topology
 
-## Create a new service
+```text
+client -> gateway -> api -> hypatia.events -> worker
+                         \-> PostgreSQL
+                         \-> Redis
+```
+
+Synchronous calls use HTTP; asynchronous integration uses the canonical `HypatiaEvent` envelope. A failed consumer delivery is rejected without requeue and routed to a dead-letter queue.
+
+## Runtime contracts
+
+- `x-correlation-id` is accepted or generated and propagated to responses, logs, and events.
+- Events contain `eventId`, `type`, `occurredAt`, optional `correlationId`, and `payload`.
+- Readiness reflects the dependencies required by the selected runtime mode.
+- Example JWT and API-key values are for local development only.
+- This repository is a GitHub template, not an npm package (`"private": true`).
+
+## Quality checks
 
 ```bash
-npm run create-service -- athena-core api
-# or
-npm run create-service -- hermes-worker worker
+npm run lint:ci
+npm run type-check
+npm test -- --runInBand
+npm run test:scripts
+npm run build
+npm audit --audit-level=high
 ```
 
-This copies the starter to `../<service-name>`, applies the archetype env (localhost hostnames in `.env`), includes `.cursor/`, and initializes git. Then follow [PRIMEIROS-PASSOS.md — Trilha C](docs/onboarding/PRIMEIROS-PASSOS.md#trilha-c--validar-um-serviço-criado-com-create-service) in the new directory.
+CI keeps quality, dependency/secret scanning, and container scanning as separate gates.
 
-## RabbitMQ conventions
+## Documentation
 
-- **Exchange:** `hypatia.events` (topic)
-- **DLX:** `hypatia.events.dlx` (direct) + `{queue}.dlq`
-- **Envelope:**
+- [First steps](docs/onboarding/PRIMEIROS-PASSOS.md)
+- [Onboarding guide](docs/onboarding/ONBOARDING.md)
+- [Glossary](docs/onboarding/GLOSSARIO.md)
+- [Architecture map](docs/onboarding/MAPA-MENTAL.md)
+- [Troubleshooting](docs/onboarding/TROUBLESHOOTING.md)
+- [Architecture decisions](docs/adr/)
 
-```json
-{
-  "eventId": "uuid",
-  "type": "order.created",
-  "occurredAt": "ISO-8601",
-  "correlationId": "optional",
-  "payload": {}
-}
-```
+## Scope and support
 
-### Publisher (api)
-
-```typescript
-await this.rabbitmq.publish('order.created', { orderId: '...' }, correlationId);
-```
-
-### Consumer (worker)
-
-Register handlers in `onModuleInit` before the app bootstraps consumers:
-
-```typescript
-this.rabbitmq.registerHandler('order.created', async (event) => {
-  // idempotent handler — dedupe via Redis eventId
-});
-```
-
-## Example flow (api → worker)
-
-**Terminal 1 — worker:**
-
-```bash
-cp archetypes/worker.env.example .env
-npm run start:dev
-```
-
-**Terminal 2 — api:**
-
-```bash
-# x-api-key must match INTERNAL_API_KEY in the api service's .env
-curl -X POST http://localhost:3000/example/events \
-  -H 'Content-Type: application/json' \
-  -H 'x-api-key: change-me-local-dev' \
-  -d '{"type":"example.created","payload":{"message":"hello"}}'
-```
-
-> All routes require auth by default (`x-api-key` or `Authorization: Bearer <Argus JWT>`).
-> Only routes marked `@Public()` — like `/health` — skip it.
-
-## Feature modules (auto-discovery)
-
-Feature modules under `src/modules/<feature>/` are **registered automatically** at bootstrap — no manual import in `AppModule`.
-
-Create a module following the convention:
-
-```
-src/modules/<feature>/<feature>.module.ts
-```
-
-Example: `src/modules/orders/orders.module.ts` exports `OrdersModule` and is picked up on the next start.
-
-Shared infrastructure (`PrismaModule`, `RedisModule`, `RabbitMqModule`, `HttpClientModule`) stays wired explicitly in `AppModule.register()`. Only domain modules under `src/modules/` use discovery.
-
-Implementation: `src/common/module-discovery/module-discovery.ts` · wired via `AppModule.register()` in `main.ts`.
-
-## Project layout
-
-```
-src/
-├── config/           # Typed env (fail-fast)
-├── prisma/           # PostgreSQL
-├── redis/            # Cache, locks, event dedupe
-├── rabbitmq/         # Publisher + consumer + DLQ
-├── common/
-│   └── module-discovery/  # Auto-loads src/modules/*/*.module.ts
-└── modules/
-    └── <feature>/    # One folder per domain — auto-discovered at bootstrap
-        └── <feature>.module.ts
-```
-
-## Scripts
-
-| Script | Description |
-| --- | --- |
-| `npm run setup:local` | Hybrid setup: api `.env`, infra up, `npm ci`, Prisma generate + migrate |
-| `npm run start:dev` | Dev server with watch |
-| `npm run create-service` | Scaffold new repo from starter |
-| `npm run prisma:migrate` | Create migration (dev) |
-| `npm run lint:ci` | ESLint (src + test) |
-| `npm test` | Unit + e2e tests |
-| `npm run test:cov` | Tests with coverage report (thresholds enforced in CI) |
-
-## Related repos
-
-| Pantheon service | Repo | Starter archetype |
-| --- | --- | --- |
-| Hades | `hades-vault` | Product — not this template |
-| Athena | `athena-core` | `api` |
-| Midas | `midas-payment` | `api` |
-| Hermes | `hermes-worker` | `worker` |
-| Argus | `argus-auth` | `api` (custom auth module) |
-| Nemesis | `nemesis-antifraud` | `api` |
+The starter is a maintained reference snapshot. Derived services do not receive updates automatically; review the changelog and deliberately merge or cherry-pick relevant changes. Public issues may document reproducible defects, but no response-time commitment is implied.
 
 ## License
 
-MIT
+[MIT](LICENSE) © Hypatia Tecnologia.

@@ -1,48 +1,50 @@
-# Agent guide — hypatia-nest-starter
+# Agent guide — Hypatia Nest Starter
 
-Referência para assistentes de IA — microserviço NestJS (ecossistema Pantheon/Hypatia).
+Repository guidance for assistants working on this NestJS template.
 
 ## Stack
 
-- **Framework:** NestJS (starter `hypatia-nest-starter` ou derivado)
-- **ORM:** Prisma
-- **Mensageria:** RabbitMQ (exchange `hypatia.events`)
-- **Cache / locks:** Redis (ioredis)
-- **Tests:** Jest
+- Node.js 22 and NestJS 11
+- Prisma with PostgreSQL
+- Redis through ioredis
+- RabbitMQ using the `hypatia.events` exchange
+- Jest for application tests and Node's test runner for shell-script contracts
 
-## Where to put code
+## Architecture
 
 | Concern | Location |
-|---------|----------|
+| --- | --- |
 | Bootstrap | `src/main.ts`, `src/app.module.ts` |
-| HTTP API | `src/**/**.controller.ts` |
-| Consumers / workers | `src/modules/<feature>/*-event.consumer.ts` (infra em `src/rabbitmq/`) |
-| Domain services | `src/**/**.service.ts` |
-| Prisma | `prisma/schema.prisma` |
+| HTTP adapters | `src/**/*.controller.ts` |
+| Event consumers | `src/modules/<feature>/*-event.consumer.ts` |
+| Application services | `src/**/*.service.ts` |
+| Shared adapters | `src/http/`, `src/redis/`, `src/rabbitmq/` |
+| Persistence | `prisma/schema.prisma` |
 
-**PII:** apenas no Hades — outros serviços referenciam IDs/vault, não armazenam dados sensíveis em claro.
+Keep domain behavior out of controllers. Validate external input at the boundary, propagate correlation IDs, redact sensitive fields before logging, and keep example credentials unsuitable for deployment.
 
-## Conventions
+## Runtime modes
 
-- REST síncrono entre serviços; eventos assíncronos via RabbitMQ.
-- Ativar rule `hypatia-ecosystem` no picker quando relevante.
-- Conventional Commits.
+- `publisher`: REST API that publishes events
+- `consumer`: worker with health endpoints
+- `off`: REST API without RabbitMQ
 
-## Useful scripts
+Use generic names such as `gateway`, `api`, and `worker` in public examples. Do not introduce organization topology, operational details, real personal data, or secrets.
+
+## Verification
 
 ```bash
-npm run start:dev
-npm run setup:local      # se existir no starter
-npx prisma generate && npx prisma migrate deploy
-docker compose up -d --wait postgres redis rabbitmq   # infra híbrida
+npm run lint:ci
+npm run type-check
+npm test -- --runInBand
+npm run test:scripts
+npm run build
 ```
+
+Use Conventional Commits. Do not edit accepted ADRs to retrofit a new decision; create a new ADR or spec when the contract changes.
 
 ## Onboarding
 
 - [Onboarding](docs/onboarding/ONBOARDING.md)
-- [Primeiros Passos](docs/onboarding/PRIMEIROS-PASSOS.md)
+- [First steps](docs/onboarding/PRIMEIROS-PASSOS.md)
 - [Troubleshooting](docs/onboarding/TROUBLESHOOTING.md)
-
-## Cursor
-
-Rules: `nestjs-patterns`, `hypatia-ecosystem` (picker) · `/review-nest-patterns`, `/onboard` · [.cursor/PORTABILITY.md](.cursor/PORTABILITY.md)

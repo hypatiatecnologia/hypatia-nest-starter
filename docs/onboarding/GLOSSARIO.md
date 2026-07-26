@@ -1,73 +1,52 @@
 # Glossário — Hypatia Nest Starter
 
-Definições dos termos usados no starter e no ecossistema Pantheon.
-
-## Ecossistema Pantheon
-
-> Por que nomes de deuses? Ver [ADR 0002: Nomenclatura Pantheon](../adr/0002-pantheon-naming.md).
-
-| Termo | Definição |
-| --- | --- |
-| **Pantheon** | Conjunto de microserviços Hypatia (Cerberus, Argus, Hades, Athena, Midas, Hermes, Nemesis). |
-| **Cerberus** | API Gateway — ponto de entrada HTTP externo. |
-| **Argus** | Serviço de autenticação/autorização (JWT). |
-| **Hades** | Data vault LGPD — único serviço que armazena PII em claro. |
-| **Athena** | Core de negócio — archetype `api`. |
-| **Midas** | Pagamentos — archetype `api`, idempotency keys obrigatórias. |
-| **Hermes** | Worker assíncrono — archetype `worker`. |
-| **Nemesis** | Antifraude — archetype `api`. |
-
 ## Observabilidade
 
 | Termo | Definição |
 | --- | --- |
-| **Correlation ID** | Identificador de rastreio ponta a ponta. Header HTTP: `x-correlation-id`. Propaga para logs Pino, erros JSON e eventos RabbitMQ. |
-| **AsyncLocalStorage (ALS)** | API Node que guarda correlation id por request/async chain. Implementado em `CorrelationContext`. |
-| **Pino** | Logger JSON estruturado usado via `nestjs-pino`. |
+| Correlation ID | Identificador ponta a ponta recebido ou gerado no header `x-correlation-id` e propagado em resposta, logs e eventos. |
+| AsyncLocalStorage | API do Node.js usada por `CorrelationContext` para manter contexto por cadeia assíncrona. |
+| Pino | Logger JSON estruturado integrado por `nestjs-pino`. |
+| Liveness | Sinal de que o processo está ativo em `GET /health/live`. |
+| Readiness | Sinal de que as dependências exigidas pelo modo atual estão disponíveis em `GET /health/ready`. |
 
 ## Mensageria
 
 | Termo | Definição |
 | --- | --- |
-| **HypatiaEvent** | Envelope canônico: `eventId`, `type`, `occurredAt`, `correlationId`, `payload`. |
-| **Exchange `hypatia.events`** | Topic exchange — routing key = tipo do evento (`order.created`). |
-| **DLX / DLQ** | Dead Letter Exchange/Queue — mensagens que falharam vão para `{queue}.dlq`. |
-| **Dedupe** | Idempotência por `eventId` via Redis (`event:processed:{eventId}`, TTL 24h). |
-| **Archetype publisher** | Serviço REST que publica eventos (`RABBITMQ_MODE=publisher`). |
-| **Archetype consumer** | Worker que consome fila (`RABBITMQ_MODE=consumer`). |
+| `HypatiaEvent` | Envelope com `eventId`, `type`, `occurredAt`, `correlationId` opcional e `payload`. |
+| `hypatia.events` | Topic exchange de exemplo; a routing key corresponde ao tipo do evento. |
+| DLX / DLQ | Exchange e fila de dead letters que recebem entregas rejeitadas. |
+| Deduplicação | Registro temporário do `eventId` no Redis para evitar processamento repetido. |
+| Publisher | Modo que publica eventos a partir de uma API. |
+| Consumer | Modo que consome eventos em um worker. |
 
 ## NestJS e camadas
 
 | Termo | Definição |
 | --- | --- |
-| **Module** | Unidade de composição Nest — agrupa controllers, providers, imports. |
-| **Controller** | Adaptador HTTP — valida DTO, delega ao service. |
-| **Service** | Caso de uso / orquestração — regra de negócio e integrações. |
-| **DTO** | Data Transfer Object — validado com `class-validator` na borda. |
-| **ValidationPipe** | Pipe global que aplica DTOs (`whitelist`, `forbidNonWhitelisted`). |
-| **PrismaService** | Cliente PostgreSQL injetável — acesso ao banco via Prisma ORM. |
+| Module | Unidade de composição NestJS que agrupa controllers, providers e imports. |
+| Controller | Adaptador HTTP que valida a entrada e delega ao serviço. |
+| Service | Caso de uso ou orquestração de domínio e integrações. |
+| DTO | Objeto de transferência validado na borda com `class-validator`. |
+| ValidationPipe | Validação global com allowlist e rejeição de campos desconhecidos. |
+| PrismaService | Cliente PostgreSQL injetável por meio do Prisma ORM. |
 
-## Erros
-
-| Termo | Definição |
-| --- | --- |
-| **DomainException** | Erro de negócio com `code` snake_case estável (ex.: `order_not_found`). |
-| **AllExceptionsFilter** | Filter global que normaliza respostas de erro com `correlationId` e `code`. |
-| **RFC 7807** | Problem Details for HTTP APIs — formato `type`, `title`, `status`, `code`. |
-
-## Infra e ops
+## Erros e segurança
 
 | Termo | Definição |
 | --- | --- |
-| **Health check** | `GET /health` — probe Postgres, Redis e RabbitMQ; 503 se degradado. |
-| **Graceful shutdown** | Encerramento ordenado via `enableShutdownHooks()` — fecha conexões antes de sair. |
-| **Archetype** | Preset de env (`api`, `worker`, `off`) em `archetypes/`. |
-| **create-service** | Script que copia starter para novo repo Pantheon com `.cursor/`. |
+| DomainException | Erro de domínio com código estável em snake case. |
+| AllExceptionsFilter | Filtro que normaliza respostas de erro e inclui o correlation ID. |
+| RFC 7807 | Modelo Problem Details adotado como referência para erros HTTP. |
+| PII | Informação pessoal identificável; não deve aparecer em exemplos, fixtures ou logs. |
+| `redactPayload` | Helper que mascara campos sensíveis antes do logging. |
+| ThrottlerGuard | Limite global de requisições por cliente. |
 
-## Segurança
+## Ferramentas
 
 | Termo | Definição |
 | --- | --- |
-| **PII** | Personally Identifiable Information — não armazenar neste starter; usar Hades. |
-| **redactPayload** | Helper que ofusca campos sensíveis antes de logar objetos. |
-| **ThrottlerGuard** | Rate limit global (100 req/60s por IP). |
+| Archetype | Preset de ambiente para os modos `api`, `worker` e `off`. |
+| `create-service` | Script que materializa uma cópia independente do template. |
+| `setup-local` | Script que prepara dependências, infraestrutura local e migrações. |

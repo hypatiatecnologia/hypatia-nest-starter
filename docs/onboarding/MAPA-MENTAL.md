@@ -1,116 +1,74 @@
-# Mapa mental — fluxos do Hypatia Nest Starter
+# Mapa mental — Hypatia Nest Starter
 
-Visualização de como os componentes se conectam no archetype **api** (publisher).
-
-## Fluxo HTTP → evento
+## Fluxo HTTP e publicação
 
 ```mermaid
 sequenceDiagram
   participant Client
-  participant Cerberus as Cerberus_Gateway
-  participant Nest as NestJS_API
-  participant Corr as CorrelationMiddleware
-  participant Ctrl as ExampleController
-  participant Svc as ExampleService
-  participant RMQ as RabbitMqService
-  participant Redis
-  participant PG as PostgreSQL
+  participant Gateway
+  participant API
+  participant Service
+  participant Broker as RabbitMQ
 
-  Client->>Cerberus: HTTP + x-correlation-id
-  Cerberus->>Nest: proxy request
-  Nest->>Corr: middleware
-  Corr->>Corr: ALS.set correlationId
-  Corr->>Ctrl: validated DTO
-  Ctrl->>Svc: publishEvent
-  Svc->>RMQ: publish type + payload
-  RMQ->>RMQ: HypatiaEvent envelope
-  RMQ-->>Client: response + correlationId
-
-  Note over PG,Redis: Health probe usa PG + Redis
-  Nest->>PG: SELECT 1
-  Nest->>Redis: ping key
+  Client->>Gateway: HTTP + x-correlation-id
+  Gateway->>API: request
+  API->>API: validate DTO and bind correlation
+  API->>Service: execute use case
+  Service->>Broker: publish HypatiaEvent
+  API-->>Client: response + x-correlation-id
 ```
 
-## Fluxo worker (consumer)
+## Fluxo do worker
 
 ```mermaid
 sequenceDiagram
-  participant RMQ as RabbitMQ
-  participant Consumer as RabbitMqService
-  participant Handler as ExampleEventConsumer
+  participant Broker as RabbitMQ
+  participant Worker
   participant Redis
-  participant DLQ as DLQ_queue
+  participant DLQ
 
-  RMQ->>Consumer: message HypatiaEvent
-  Consumer->>Redis: exists event:processed:id
+  Broker->>Worker: HypatiaEvent
+  Worker->>Redis: check eventId
   alt duplicate
-    Consumer->>RMQ: ack skip
+    Worker->>Broker: acknowledge
   else new event
-    Consumer->>Handler: handler event
+    Worker->>Worker: run handler
     alt success
-      Handler-->>Consumer: ok
-      Consumer->>Redis: set dedupe TTL 24h
-      Consumer->>RMQ: ack
+      Worker->>Redis: remember eventId
+      Worker->>Broker: acknowledge
     else failure
-      Handler-->>Consumer: throw
-      Consumer->>RMQ: nack no requeue
-      RMQ->>DLQ: dead letter
+      Worker->>Broker: reject without requeue
+      Broker->>DLQ: dead letter
     end
   end
 ```
 
-## Camadas do projeto
+## Camadas
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│  Borda HTTP (main.ts)                                    │
-│  correlationMiddleware · ValidationPipe · helmet · Pino  │
-└──────────────────────────┬──────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────┐
-│  Adaptadores (controllers / consumers)                     │
-│  src/modules/<feature>/*.controller.ts                   │
-│  src/modules/<feature>/*-event.consumer.ts               │
-└──────────────────────────┬──────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────┐
-│  Aplicação (services)                                    │
-│  src/modules/<feature>/*.service.ts                      │
-└──────────────────────────┬──────────────────────────────┘
-                           │
-┌──────────────────────────▼──────────────────────────────┐
-│  Infra compartilhada                                     │
-│  Prisma · Redis · RabbitMQ · HttpClient                  │
-└─────────────────────────────────────────────────────────┘
+HTTP boundary
+  -> controllers and event consumers
+    -> application services
+      -> Prisma, Redis, RabbitMQ and outbound HTTP adapters
 ```
 
-## Topologia RabbitMQ
+## Topologia genérica
 
 ```text
-                    publish (routing key = event.type)
-  [API Service] ──────────────────────────► hypatia.events (topic)
-                                                    │
-                                                    │ bind #
-                                                    ▼
-                                            hypatia-service.events
-                                                    │
-                              handler fail nack ────┼──► hypatia.events.dlx
-                                                    │              │
-                                                    │              ▼
-                                                    │    hypatia-service.events.dlq
-                                                    ▼
-                                            [Worker Service]
+gateway -> api --publish--> hypatia.events --route--> worker
+             |                                  |
+             +--> PostgreSQL / Redis             +--> DLQ on failure
 ```
 
-## Onde aprender cada peça
+## Pontos de entrada no código
 
-| Fluxo | Arquivo principal |
+| Fluxo | Arquivo |
 | --- | --- |
 | Bootstrap | `src/main.ts` |
-| Auto-discovery de módulos | `src/common/module-discovery/module-discovery.ts` |
-| Correlation | `src/common/correlation/` |
-| Publish | `src/rabbitmq/rabbitmq.service.ts` |
-| Consume | `src/modules/example/example-event.consumer.ts` |
+| Descoberta de módulos | `src/common/module-discovery/module-discovery.ts` |
+| Correlation ID | `src/common/correlation/` |
+| Publicação e consumo | `src/rabbitmq/rabbitmq.service.ts` |
+| Consumer de exemplo | `src/modules/example/example-event.consumer.ts` |
 | Health | `src/health.controller.ts` |
 | Erros | `src/common/filters/all-exceptions.filter.ts` |
-| HTTP outbound | `src/http/http-client.service.ts` |
+| HTTP de saída | `src/http/http-client.service.ts` |
