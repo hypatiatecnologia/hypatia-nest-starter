@@ -1,10 +1,10 @@
-import { RabbitMqMode } from '../../config/configuration';
+import { NodeEnv, RabbitMqMode } from '../../config/configuration';
 
 export interface StartupBannerInput {
   serviceName: string;
   baseUrl: string;
   rabbitmqMode: RabbitMqMode;
-  nodeEnv: string;
+  nodeEnv: NodeEnv;
 }
 
 function boxWidth(lines: string[]): number {
@@ -50,5 +50,6 @@ export function printStartupBanner(input: StartupBannerInput): void {
 }
 
 export function formatStartupLogMessage(input: StartupBannerInput): string {
-  return `${input.serviceName} running at ${input.baseUrl} — Swagger: ${input.baseUrl}/docs/api — Health: ${input.baseUrl}/health — RabbitMQ: ${input.rabbitmqMode}`;
+  const swagger = input.nodeEnv === 'production' ? '' : ` — Swagger: ${input.baseUrl}/docs/api`;
+  return `${input.serviceName} running at ${input.baseUrl}${swagger} — Health: ${input.baseUrl}/health — RabbitMQ: ${input.rabbitmqMode}`;
 }

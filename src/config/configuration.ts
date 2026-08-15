@@ -21,10 +21,11 @@ import { z } from 'zod';
  *   consumer  — connect and consume from RABBITMQ_QUEUE (Hermes)
  */
 export type RabbitMqMode = 'off' | 'publisher' | 'consumer';
+export type NodeEnv = 'development' | 'test' | 'production';
 
 export interface AppConfig {
   port: number;
-  nodeEnv: string;
+  nodeEnv: NodeEnv;
   serviceName: string;
   databaseUrl: string;
   redisUrl: string;
@@ -46,7 +47,7 @@ export interface AppConfig {
 const envSchema = z
   .object({
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-    NODE_ENV: z.string().default('development'),
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
     SERVICE_NAME: z.string().min(1, 'SERVICE_NAME is required'),
     DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
     REDIS_URL: z.string().min(1, 'REDIS_URL is required').default('redis://localhost:6379'),
@@ -72,15 +73,58 @@ const envSchema = z
       });
     }
 
-    const hasAuthSecret = Boolean(env.ARGUS_JWT_SECRET?.trim() || env.INTERNAL_API_KEY?.trim());
-    if (env.NODE_ENV === 'production' && !hasAuthSecret) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['ARGUS_JWT_SECRET'],
-        message: 'ARGUS_JWT_SECRET or INTERNAL_API_KEY is required in production',
-      });
-    }
+    refineProductionEnv(env, ctx);
   });
+
+const PRODUCTION_PLACEHOLDER_SECRETS = new Set([
+  'change-me-local-dev',
+  'changeme',
+  'secret',
+  'password',
+]);
+
+function refineProductionEnv(
+  env: {
+    NODE_ENV: NodeEnv;
+    ARGUS_JWT_SECRET?: string;
+    INTERNAL_API_KEY?: string;
+  },
+  ctx: z.RefinementCtx,
+): void {
+  if (env.NODE_ENV !== 'production') {
+    return;
+  }
+
+  const jwtSecret = env.ARGUS_JWT_SECRET?.trim();
+  const apiKey = env.INTERNAL_API_KEY?.trim();
+  if (!jwtSecret && !apiKey) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['ARGUS_JWT_SECRET'],
+      message: 'ARGUS_JWT_SECRET or INTERNAL_API_KEY is required in production',
+    });
+    return;
+  }
+
+  rejectPlaceholderSecret(ctx, 'INTERNAL_API_KEY', apiKey);
+  rejectPlaceholderSecret(ctx, 'ARGUS_JWT_SECRET', jwtSecret);
+}
+
+function rejectPlaceholderSecret(
+  ctx: z.RefinementCtx,
+  path: 'INTERNAL_API_KEY' | 'ARGUS_JWT_SECRET',
+  value?: string,
+): void {
+  if (!value || !PRODUCTION_PLACEHOLDER_SECRETS.has(value.toLowerCase())) {
+    return;
+  }
+
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: [path],
+    message: `${path} must not use a documented example placeholder in production`,
+  });
+}
 
 /**
  * TRUST_PROXY accepts the same values as Express `trust proxy`:

@@ -29,14 +29,14 @@ Comunicação: **REST** (síncrono) + **RabbitMQ** (assíncrono, exchange `hypat
 - **Logs:** sem PII; respeitar `redact` do Pino em `AppModule`.
 - **Correlation ID:** header `x-correlation-id` — gerado quando ausente, ecoado na resposta; presente em logs Pino, erros HTTP e eventos RabbitMQ.
 - **Eventos:** envelope `HypatiaEvent` (`eventId`, `type`, `occurredAt`, `correlationId`, `payload`).
-- **Consumers:** idempotentes — dedupe por `eventId` (Redis); falhas vão para DLQ.
+- **Consumers:** claim Redis (`SET NX event:processed:{eventId}`) **antes** do handler — at-most-once da invocação (ADR 0006); falhas vão para DLQ. Handlers devem ser crash-safe; replay da DLQ exige a chave Redis já liberada.
 - **Pagamentos (Midas):** idempotency keys em todas as requisições ao gateway.
 
 ## Onde implementar o quê
 
 | Camada | Path |
 | --- | --- |
-| Infra compartilhada | `src/prisma/`, `src/redis/`, `src/rabbitmq/`, `src/common/correlation/` |
+| Infra compartilhada | `src/prisma/`, `src/redis/`, `src/rabbitmq/`, `src/http/`, `src/common/correlation/` |
 | Features | `src/modules/<feature>/` |
 | Config tipada | `src/config/configuration.ts` |
 | Env por archetype | `archetypes/api.env.example`, `archetypes/worker.env.example` |

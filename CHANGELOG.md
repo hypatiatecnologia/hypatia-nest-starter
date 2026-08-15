@@ -10,6 +10,11 @@ versão seguindo o `package.json`.
 
 ### Security — [aplicar em derivados]
 
+- Probes `GET /health`, `/health/live` e `/health/ready` agora usam `@SkipThrottle()` —
+  orquestradores não consomem o rate limit global (429 em liveness causava restart).
+- `AllExceptionsFilter` não vaza `message`/`details` de `HttpException` 5xx ao cliente.
+- `NODE_ENV` é enum `development | test | production`; produção rejeita placeholders
+  documentados (`change-me-local-dev`, `changeme`, `secret`, `password`).
 - NestJS 10 → 11 (Express 5) e Node 20 (EOL) → 22 LTS; `npm audit` high zerado.
 - Override `multer@^2.2.0` (o `@nestjs/platform-express` ainda pinna 2.1.1,
   vulnerável a DoS — GHSA-72gw-mp4g-v24j). Remover quando o upstream atualizar.
@@ -25,6 +30,7 @@ versão seguindo o `package.json`.
 
 ### Added
 
+- ADR 0006: claim Redis **antes** do handler (at-most-once da invocação).
 - `request.user` populado pelo guard + decorator `@CurrentUser()`.
 - `GET /health/live` (liveness sem dependências) e `GET /health/ready`
   (readiness); `GET /health` mantido como alias de ready.
@@ -35,6 +41,11 @@ versão seguindo o `package.json`.
 
 ### Changed
 
+- Consumer loga falha de `redis.del` ao nack (claim órfã visível antes de replay da DLQ).
+- `POST /example/events` retorna `published: false` quando `RABBITMQ_MODE=off`.
+- Worker registra `ExampleService` e redige payload no handler de exemplo.
+- Payload do exemplo é DTO aninhado (`message: string`), não `Record<string, unknown>`.
+- Log de startup em produção omite Swagger (a UI não é montada nesse ambiente).
 - Dedupe de eventos atômico (`SET NX` antes do handler) — sem duplicatas
   entre réplicas concorrentes.
 - Fila RabbitMQ bindada às routing keys dos handlers registrados (antes `#`,

@@ -24,11 +24,11 @@ src/modules/<feature>/
     └── *.dto.ts
 ```
 
-Infra compartilhada: `src/prisma/`, `src/redis/`, `src/rabbitmq/`, `src/config/`, `src/common/correlation/`.
+Infra compartilhada: `src/prisma/`, `src/redis/`, `src/rabbitmq/`, `src/http/`, `src/config/`, `src/common/correlation/`.
 
 ## Correlation ID
 
-- Header: `x-correlation-id` — `correlationMiddleware` em `main.ts` (antes do pino).
+- Header: `x-correlation-id` — `correlationMiddleware` em `app.setup.ts` (antes do pino).
 - Contexto: `CorrelationContext` (AsyncLocalStorage) — use `CorrelationContext.get()` em services.
 - Logs Pino: `genReqId` + `customProps.correlationId` em `AppModule`.
 - Erros HTTP: `AllExceptionsFilter` inclui `correlationId` na resposta.
@@ -38,19 +38,19 @@ Infra compartilhada: `src/prisma/`, `src/redis/`, `src/rabbitmq/`, `src/config/`
 
 - **publisher (api):** REST + `RabbitMqService.publish()` após transação bem-sucedida.
 - **consumer (worker):** sem controllers de negócio; handlers em `onModuleInit` via `registerHandler`.
-- **off:** sem conexão AMQP; `publish()` é no-op.
+- **off:** sem conexão AMQP; `publish()` é no-op — o caller deve refletir isso (`published: false`), não mentir sucesso.
 
 ## Controller
 
 - `@Controller`, `@ApiTags`, `@ApiBearerAuth` quando autenticado (integração Argus futura).
-- DTOs com `class-validator` + `@ApiProperty` para Swagger.
+- DTOs com `class-validator` + `@ApiProperty` para Swagger (UI só fora de `NODE_ENV=production`).
 - **Proibido** lógica de negócio pesada no controller — delegar ao service.
 - Propagar `x-correlation-id` para eventos publicados.
 
 ## Service
 
 - `@Injectable()` com dependências via construtor (`PrismaService`, `RedisService`, `RabbitMqService`).
-- Exceções Nest para erros de negócio esperados (`NotFoundException`, `ForbiddenException`).
+- Erros de negócio: `DomainException` com `code` estável (`not_found`, `forbidden`, …). O HTTP status é derivado no `AllExceptionsFilter` — **não** lançar `NotFoundException`/`ForbiddenException` no service.
 - **Proibido** `catch` silencioso; propagar ou mapear na borda com código estável.
 - **Proibido** persistir PII bruto — delegar ao Hades (`hades-vault`).
 
@@ -58,12 +58,12 @@ Infra compartilhada: `src/prisma/`, `src/redis/`, `src/rabbitmq/`, `src/config/`
 
 - Routing key = `event.type` (ex.: `order.created`).
 - Publicar **depois** de commit de transação Prisma quando houver side effect externo.
-- Handlers de consumer: curtos, idempotentes; sem HTTP no caminho crítico.
+- Handlers de consumer: curtos, crash-safe; claim Redis **antes** do handler (ADR 0006); sem HTTP no caminho crítico.
 
 ## DTOs e validação
 
 - Um arquivo por DTO em `dto/`, kebab-case (`create-order.dto.ts`).
-- Decorators `class-validator`; validação global via `ValidationPipe` em `main.ts`.
+- Decorators `class-validator`; validação global via `ValidationPipe` em `app.setup.ts`.
 - **Não** usar Yup neste repo.
 
 ## Prisma

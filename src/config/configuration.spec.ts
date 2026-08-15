@@ -68,6 +68,31 @@ describe('validateConfig', () => {
     ).toThrow('ARGUS_JWT_SECRET or INTERNAL_API_KEY is required in production');
   });
 
+  it('rejects unknown NODE_ENV values', () => {
+    expect(() => validateConfig({ ...validEnv, NODE_ENV: 'Production' })).toThrow('NODE_ENV');
+    expect(() => validateConfig({ ...validEnv, NODE_ENV: 'prod' })).toThrow('NODE_ENV');
+  });
+
+  it('rejects documented example secrets in production', () => {
+    expect(() =>
+      validateConfig({
+        ...validEnv,
+        NODE_ENV: 'production',
+        INTERNAL_API_KEY: 'change-me-local-dev',
+      }),
+    ).toThrow('INTERNAL_API_KEY must not use a documented example placeholder in production');
+  });
+
+  it('accepts production when a non-placeholder secret is set', () => {
+    const config = validateConfig({
+      ...validEnv,
+      NODE_ENV: 'production',
+      INTERNAL_API_KEY: 'prod-internal-api-key',
+    });
+    expect(config.nodeEnv).toBe('production');
+    expect(config.internalApiKey).toBe('prod-internal-api-key');
+  });
+
   it('maps optional auth secrets when provided', () => {
     const config = validateConfig({
       ...validEnv,

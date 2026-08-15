@@ -53,10 +53,11 @@ const hypatiaEventSchema = z
  * bootstrap is a silent no-op — its binding never gets created.
  *
  * Message lifecycle on the consumer side (handleMessage):
- *   parse + validate envelope → claim eventId in Redis (skip duplicates) →
- *   run handler → ack. Any failure → release claim + nack without requeue →
- *   the broker dead-letters the message to {queue}.dlq for inspection/replay
- *   (Management UI → Queues → {queue}.dlq).
+ *   parse + validate envelope → claim eventId in Redis BEFORE the handler
+ *   (skip duplicates) → run handler → ack. Any failure → release claim +
+ *   nack without requeue → the broker dead-letters to {queue}.dlq.
+ *   If Redis DEL fails, the claim stays (TTL 24h): log the key and still
+ *   DLQ — operators must delete event:processed:{eventId} before replay.
  *
  * Management UI (local dev): http://localhost:15672 (RABBITMQ_USER / RABBITMQ_PASSWORD do .env)
  */
@@ -262,14 +263,37 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
       );
       this.channel.ack(message);
     } catch (error) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      this.logger.error(`Failed to process message: ${err.message}`, err.stack);
-      // Release the claim so a redelivery/manual DLQ replay can process it.
-      if (dedupeKey) {
-        await this.redis.del(dedupeKey).catch(() => undefined);
-      }
-      // nack without requeue → message goes to DLQ via x-dead-letter-exchange.
-      this.channel.nack(message, false, false);
+      await this.deadLetterOnFailure(message, dedupeKey, error);
+    }
+  }
+
+  /**
+   * Releases the Redis claim then nacks without requeue (DLQ).
+   * If `del` fails the claim stays for up to 24h — log it so operators can
+   * delete the key before replaying the DLQ message (otherwise replay is skipped).
+   */
+  private async deadLetterOnFailure(
+    message: ConsumeMessage,
+    dedupeKey: string | undefined,
+    error: unknown,
+  ): Promise<void> {
+    const err = error instanceof Error ? error : new Error(String(error));
+    this.logger.error(`Failed to process message: ${err.message}`, err.stack);
+    if (dedupeKey) {
+      await this.releaseDedupeClaim(dedupeKey);
+    }
+    this.channel?.nack(message, false, false);
+  }
+
+  private async releaseDedupeClaim(dedupeKey: string): Promise<void> {
+    try {
+      await this.redis.del(dedupeKey);
+    } catch (releaseError) {
+      const err = releaseError instanceof Error ? releaseError : new Error(String(releaseError));
+      this.logger.error(
+        `Failed to release dedupe claim ${dedupeKey}: ${err.message}. Delete this Redis key before replaying the DLQ message or the replay will be skipped as a duplicate.`,
+        err.stack,
+      );
     }
   }
 

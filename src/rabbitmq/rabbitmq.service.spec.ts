@@ -191,6 +191,17 @@ describe('RabbitMqService', () => {
       expect(redis.del).toHaveBeenCalledWith('event:processed:evt-1');
     });
 
+    it('still dead-letters when releasing the claim fails', async () => {
+      handler.mockRejectedValue(new Error('handler failed'));
+      redis.del.mockRejectedValue(new Error('redis unavailable'));
+
+      await handle(buildEvent());
+
+      expect(redis.del).toHaveBeenCalledWith('event:processed:evt-1');
+      expect(nack).toHaveBeenCalledWith(expect.anything(), false, false);
+      expect(ack).not.toHaveBeenCalled();
+    });
+
     it('nacks malformed event envelopes before dedupe', async () => {
       await (
         service as unknown as { handleMessage: (message: ConsumeMessage | null) => Promise<void> }

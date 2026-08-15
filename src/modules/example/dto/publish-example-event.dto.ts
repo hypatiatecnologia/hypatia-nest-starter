@@ -1,4 +1,5 @@
-import { IsIn, IsNotEmpty, IsObject, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsIn, IsNotEmpty, IsNotEmptyObject, IsString, ValidateNested } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 /**
@@ -8,6 +9,14 @@ import { ApiProperty } from '@nestjs/swagger';
  */
 export const EXAMPLE_EVENT_TYPES = ['example.created'] as const;
 
+/** Typed payload for `example.created` — replace with your domain fields. */
+export class ExampleEventPayloadDto {
+  @ApiProperty({ example: 'hello from api' })
+  @IsString()
+  @IsNotEmpty()
+  message!: string;
+}
+
 /** Request body for POST /example/events — replace with your domain DTOs. */
 export class PublishExampleEventDto {
   @ApiProperty({ example: 'example.created', enum: EXAMPLE_EVENT_TYPES })
@@ -16,7 +25,9 @@ export class PublishExampleEventDto {
   @IsIn(EXAMPLE_EVENT_TYPES)
   type!: (typeof EXAMPLE_EVENT_TYPES)[number];
 
-  @ApiProperty({ example: { message: 'hello from api' } })
-  @IsObject()
-  payload!: Record<string, unknown>;
+  @ApiProperty({ type: ExampleEventPayloadDto, example: { message: 'hello from api' } })
+  @ValidateNested()
+  @Type(() => ExampleEventPayloadDto)
+  @IsNotEmptyObject()
+  payload!: ExampleEventPayloadDto;
 }

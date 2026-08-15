@@ -20,6 +20,8 @@ sequenceDiagram
 
 ## Fluxo do worker
 
+Claim Redis **antes** do handler (ADR 0006): a invocação acontece no máximo uma vez entre réplicas. Crash no meio do handler não reprocessa até o TTL (24h) ou até alguém apagar `event:processed:{eventId}`.
+
 ```mermaid
 sequenceDiagram
   participant Broker as RabbitMQ
@@ -28,15 +30,15 @@ sequenceDiagram
   participant DLQ
 
   Broker->>Worker: HypatiaEvent
-  Worker->>Redis: check eventId
-  alt duplicate
+  Worker->>Redis: SET NX eventId
+  alt claim lost
     Worker->>Broker: acknowledge
-  else new event
+  else claimed
     Worker->>Worker: run handler
     alt success
-      Worker->>Redis: remember eventId
       Worker->>Broker: acknowledge
     else failure
+      Worker->>Redis: DEL eventId
       Worker->>Broker: reject without requeue
       Broker->>DLQ: dead letter
     end

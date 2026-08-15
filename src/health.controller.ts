@@ -1,5 +1,6 @@
 import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { withTimeout } from './common/async/with-timeout';
 import { Public } from './common/auth/public.decorator';
@@ -16,10 +17,13 @@ import { RabbitMqService } from './rabbitmq/rabbitmq.service';
  *                     instance from load balancing until they recover.
  * GET /health       — alias of /health/ready (backwards compatibility).
  *
- * All three are @Public — probes run before any credential exists. RabbitMQ
- * being "error" makes readiness fail on purpose: a publisher that cannot
- * publish or a worker that cannot consume is not ready, even if HTTP works.
+ * All three are @Public and @SkipThrottle — probes run before any credential
+ * exists and must not consume the global rate-limit bucket. Orchestrators
+ * share a source IP (kubelet/NAT); a 429 here restarts or ejects the instance.
+ * RabbitMQ being "error" makes readiness fail on purpose: a publisher that
+ * cannot publish or a worker that cannot consume is not ready, even if HTTP works.
  */
+@SkipThrottle()
 @ApiTags('health')
 @Controller('health')
 export class HealthController {

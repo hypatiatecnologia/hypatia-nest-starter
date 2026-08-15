@@ -7,8 +7,9 @@ import { CorrelationContext } from '../correlation/correlation.context';
 /**
  * Normalizes error responses across the API.
  *
- * HttpException → status, message, and stable `code` (snake_case).
- * Everything else → 500 with code `internal_error` (details logged server-side).
+ * 4xx HttpException → status, message, and stable `code` (snake_case).
+ * 5xx and unknown errors → 500 with code `internal_error` and a generic
+ * message (driver/SQL details stay in the server log, never the client body).
  *
  * Every error, on every route, has this shape:
  *   {
@@ -33,43 +34,58 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
-
     const status =
       exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR;
-
-    const body = this.resolveBody(exception);
-    const code = resolveErrorCode(exception);
     const correlationId = request.correlationId ?? CorrelationContext.get();
     // Strip query string — tokens/PII in ?query must not echo to clients or logs.
     const path = sanitizeRequestPath(request.url);
+    const exposeClientDetails = status < HttpStatus.INTERNAL_SERVER_ERROR;
 
-    if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
-      this.logger.error(
-        {
-          err: exception instanceof Error ? exception : new Error(String(exception)),
-          method: request.method,
-          url: path,
-          correlationId,
-        },
-        `${request.method} ${path} — internal error`,
-      );
-    }
-
+    this.logInternalIfNeeded(exception, request.method, path, correlationId, exposeClientDetails);
     response.status(status).json({
       statusCode: status,
-      code,
-      ...body,
+      code: exposeClientDetails ? resolveErrorCode(exception) : 'internal_error',
+      ...this.resolveBody(exception, exposeClientDetails),
       ...(correlationId ? { correlationId } : {}),
       path,
       timestamp: new Date().toISOString(),
     });
   }
 
-  private resolveBody(exception: unknown): {
+  private logInternalIfNeeded(
+    exception: unknown,
+    method: string,
+    path: string,
+    correlationId: string | undefined,
+    exposeClientDetails: boolean,
+  ): void {
+    if (exposeClientDetails) {
+      return;
+    }
+
+    this.logger.error(
+      {
+        err: exception instanceof Error ? exception : new Error(String(exception)),
+        method,
+        url: path,
+        correlationId,
+      },
+      `${method} ${path} — internal error`,
+    );
+  }
+
+  private resolveBody(
+    exception: unknown,
+    exposeClientDetails: boolean,
+  ): {
     message: string | string[];
     error?: string;
     details?: Record<string, unknown>;
   } {
+    if (!exposeClientDetails) {
+      return { message: 'Internal server error', error: 'Internal Server Error' };
+    }
+
     if (!(exception instanceof HttpException)) {
       return { message: 'Internal server error', error: 'Internal Server Error' };
     }

@@ -30,7 +30,7 @@ export class ExampleModule {
       module: ExampleModule,
       // Worker archetype: no HTTP controllers — only queue handlers + /health.
       controllers: isConsumer ? [] : [ExampleController],
-      providers: isConsumer ? [ExampleEventConsumer] : [ExampleService],
+      providers: isConsumer ? [ExampleService, ExampleEventConsumer] : [ExampleService],
     };
   }
 }

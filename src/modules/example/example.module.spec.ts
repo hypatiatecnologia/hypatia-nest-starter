@@ -31,6 +31,6 @@ describe('ExampleModule', () => {
     const module = ExampleModule.register({ ...baseConfig, rabbitmqMode: 'consumer' });
 
     expect(module.controllers).toEqual([]);
-    expect(module.providers).toEqual([ExampleEventConsumer]);
+    expect(module.providers).toEqual([ExampleService, ExampleEventConsumer]);
   });
 });

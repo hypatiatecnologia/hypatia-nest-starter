@@ -58,7 +58,7 @@ export class AppModule {
         LoggerModule.forRoot({
           pinoHttp: {
             transport:
-              process.env.NODE_ENV !== 'production'
+              appConfig.nodeEnv !== 'production'
                 ? { target: 'pino-pretty', options: { singleLine: true } }
                 : undefined,
             // Reuse the caller's correlation id as pino's request id: one grep
@@ -104,7 +104,7 @@ export class AppModule {
             // in-memory elsewhere (tests/dev must not require a live Redis).
             // Reuses the RedisService connection — closed on shutdown, no
             // second unmanaged client.
-            ...(config.get('nodeEnv', { infer: true }) === 'production'
+            ...(appConfig.nodeEnv === 'production'
               ? { storage: new ThrottlerStorageRedisService(redis.getClient()) }
               : {}),
           }),

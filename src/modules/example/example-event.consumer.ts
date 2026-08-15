@@ -1,7 +1,6 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { CorrelationContext } from '../../common/correlation/correlation.context';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { RabbitMqService } from '../../rabbitmq/rabbitmq.service';
-import { HypatiaEvent } from '../../rabbitmq/rabbitmq.types';
+import { ExampleService } from './example.service';
 
 /**
  * Worker archetype sample — registers queue handlers in onModuleInit.
@@ -11,22 +10,19 @@ import { HypatiaEvent } from '../../rabbitmq/rabbitmq.types';
  *
  * Test the full flow:
  *   1. Terminal A: RABBITMQ_MODE=consumer npm run start:dev
- *   2. Terminal B: RABBITMQ_MODE=publisher npm run start:dev (port 3001)
+ *   2. Terminal B: RABBITMQ_MODE=publisher PORT=3001 npm run start:dev
  *   3. POST /example/events on terminal B → log appears in terminal A
  */
 @Injectable()
 export class ExampleEventConsumer implements OnModuleInit {
-  private readonly logger = new Logger(ExampleEventConsumer.name);
-
-  constructor(private readonly rabbitmq: RabbitMqService) {}
+  constructor(
+    private readonly rabbitmq: RabbitMqService,
+    private readonly exampleService: ExampleService,
+  ) {}
 
   onModuleInit(): void {
-    this.rabbitmq.registerHandler('example.created', (event) => this.handleExampleCreated(event));
-  }
-
-  private async handleExampleCreated(event: HypatiaEvent): Promise<void> {
-    this.logger.log(
-      `Received ${event.type} (${event.eventId}) correlationId=${CorrelationContext.get()}`,
+    this.rabbitmq.registerHandler('example.created', (event) =>
+      this.exampleService.handleExampleCreated(event),
     );
   }
 }

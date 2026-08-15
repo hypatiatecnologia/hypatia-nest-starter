@@ -5,7 +5,7 @@ describe('startup-banner', () => {
     serviceName: 'hypatia-service',
     baseUrl: 'http://localhost:3000',
     rabbitmqMode: 'publisher' as const,
-    nodeEnv: 'development',
+    nodeEnv: 'development' as const,
   };
 
   it('buildStartupBanner includes service endpoints and mode', () => {
@@ -21,6 +21,12 @@ describe('startup-banner', () => {
   it('formatStartupLogMessage summarizes runtime URLs', () => {
     expect(formatStartupLogMessage(input)).toBe(
       'hypatia-service running at http://localhost:3000 — Swagger: http://localhost:3000/docs/api — Health: http://localhost:3000/health — RabbitMQ: publisher',
+    );
+  });
+
+  it('formatStartupLogMessage omits Swagger in production', () => {
+    expect(formatStartupLogMessage({ ...input, nodeEnv: 'production' })).toBe(
+      'hypatia-service running at http://localhost:3000 — Health: http://localhost:3000/health — RabbitMQ: publisher',
     );
   });
 

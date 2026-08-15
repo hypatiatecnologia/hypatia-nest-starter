@@ -66,6 +66,14 @@ describe('App (e2e)', () => {
     expect(response.body.checks).toBeUndefined();
   });
 
+  it('does not rate-limit health probes', async () => {
+    const live = await request(app.getHttpServer()).get('/health/live').expect(200);
+    const ready = await request(app.getHttpServer()).get('/health/ready').expect(200);
+
+    expect(live.headers['x-ratelimit-limit']).toBeUndefined();
+    expect(ready.headers['x-ratelimit-limit']).toBeUndefined();
+  });
+
   it('GET /health/ready reports dependency status', async () => {
     const response = await request(app.getHttpServer()).get('/health/ready').expect(200);
 
@@ -87,6 +95,20 @@ describe('App (e2e)', () => {
 
     expect(response.headers['x-powered-by']).toBeUndefined();
     expect(response.headers['x-content-type-options']).toBe('nosniff');
+  });
+
+  it('POST /example/events reports published false when RabbitMQ is off', async () => {
+    rabbitmq.isEnabled.mockReturnValue(false);
+    rabbitmq.publish.mockClear();
+
+    const response = await request(app.getHttpServer())
+      .post('/example/events')
+      .set(API_KEY_HEADER, 'test-internal-api-key')
+      .send({ type: 'example.created', payload: { message: 'hello' } })
+      .expect(201);
+
+    expect(response.body.published).toBe(false);
+    expect(rabbitmq.publish).not.toHaveBeenCalled();
   });
 
   it('POST /example/events publishes domain event', async () => {

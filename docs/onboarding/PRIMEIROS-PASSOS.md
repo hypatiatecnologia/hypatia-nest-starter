@@ -8,7 +8,7 @@ Problemas comuns: [TROUBLESHOOTING.md](./TROUBLESHOOTING.md).
 
 | Ferramenta | Como verificar |
 | --- | --- |
-| Node.js 20 | `nvm use` e `node -v` (deve ser v20.x) |
+| Node.js 22 | `nvm use` e `node -v` (deve ser v22.x) |
 | Docker Compose v2 | `docker compose version` |
 | Portas livres | 3000, 5432, 6379, 5672 (e 15672 para a UI do RabbitMQ) |
 

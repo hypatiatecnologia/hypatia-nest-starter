@@ -18,7 +18,7 @@ Repository guidance for assistants working on this NestJS template.
 | HTTP adapters | `src/**/*.controller.ts` |
 | Event consumers | `src/modules/<feature>/*-event.consumer.ts` |
 | Application services | `src/**/*.service.ts` |
-| Shared adapters | `src/http/`, `src/redis/`, `src/rabbitmq/` |
+| Shared adapters | `src/http/`, `src/prisma/`, `src/redis/`, `src/rabbitmq/` |
 | Persistence | `prisma/schema.prisma` |
 
 Keep domain behavior out of controllers. Validate external input at the boundary, propagate correlation IDs, redact sensitive fields before logging, and keep example credentials unsuitable for deployment.

@@ -1,4 +1,9 @@
-import { ArgumentsHost, BadRequestException, HttpStatus } from '@nestjs/common';
+import {
+  ArgumentsHost,
+  BadRequestException,
+  HttpStatus,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { PinoLogger } from 'nestjs-pino';
 import { DomainException } from '../errors/domain.exception';
 import { AllExceptionsFilter } from './all-exceptions.filter';
@@ -102,6 +107,62 @@ describe('AllExceptionsFilter', () => {
         path: expect.stringContaining('token='),
       }),
     );
+  });
+
+  it('includes details on 4xx DomainException', () => {
+    const { host, json } = createHost();
+
+    createFilter().catch(
+      new DomainException('conflict', 'SKU already exists', HttpStatus.CONFLICT, { sku: 'ABC' }),
+      host,
+    );
+
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 'conflict',
+        message: 'SKU already exists',
+        details: { sku: 'ABC' },
+      }),
+    );
+  });
+
+  it('does not leak HttpException 5xx messages to the client', () => {
+    const { host, status, json } = createHost();
+
+    createFilter().catch(
+      new InternalServerErrorException('relation "orders" does not exist'),
+      host,
+    );
+
+    expect(status).toHaveBeenCalledWith(HttpStatus.INTERNAL_SERVER_ERROR);
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+        code: 'internal_error',
+        message: 'Internal server error',
+      }),
+    );
+    expect(json.mock.calls[0][0].message).not.toContain('orders');
+    expect(json.mock.calls[0][0].details).toBeUndefined();
+  });
+
+  it('strips DomainException 5xx details from the client body', () => {
+    const { host, json } = createHost();
+
+    createFilter().catch(
+      new DomainException('internal_error', 'SQL exploded', HttpStatus.INTERNAL_SERVER_ERROR, {
+        sql: 'SELECT 1',
+      }),
+      host,
+    );
+
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 'internal_error',
+        message: 'Internal server error',
+      }),
+    );
+    expect(json.mock.calls[0][0].details).toBeUndefined();
   });
 
   it('maps unknown errors to 500 with internal_error code', () => {

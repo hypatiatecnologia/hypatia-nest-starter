@@ -38,7 +38,7 @@
 | --- | --- |
 | DomainException | Erro de domínio com código estável em snake case. |
 | AllExceptionsFilter | Filtro que normaliza respostas de erro e inclui o correlation ID. |
-| RFC 7807 | Modelo Problem Details adotado como referência para erros HTTP. |
+| Envelope de erro | JSON interno com `statusCode`, `code` (snake_case), `message` e `correlationId`. RFC 9457 (Problem Details) é referência, não o contrato HTTP deste starter. |
 | PII | Informação pessoal identificável; não deve aparecer em exemplos, fixtures ou logs. |
 | `redactPayload` | Helper que mascara campos sensíveis antes do logging. |
 | ThrottlerGuard | Limite global de requisições por cliente. |
