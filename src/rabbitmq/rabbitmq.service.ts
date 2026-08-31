@@ -17,6 +17,9 @@ import { HypatiaEvent, EventHandler } from './rabbitmq.types';
 // outage hangs bootstrap (connect) or HTTP requests (buffered publish).
 const CONNECT_TIMEOUT_MS = 30_000;
 const PUBLISH_TIMEOUT_MS = 10_000;
+const DEDUPE_TTL_SECONDS = 86_400;
+// Delay before requeueing after a failed Redis claim — see claimDedupeKey().
+const REQUEUE_BACKOFF_MS = 2_000;
 
 const hypatiaEventSchema = z
   .object({
@@ -54,10 +57,13 @@ const hypatiaEventSchema = z
  *
  * Message lifecycle on the consumer side (handleMessage):
  *   parse + validate envelope → claim eventId in Redis BEFORE the handler
- *   (skip duplicates) → run handler → ack. Any failure → release claim +
- *   nack without requeue → the broker dead-letters to {queue}.dlq.
- *   If Redis DEL fails, the claim stays (TTL 24h): log the key and still
- *   DLQ — operators must delete event:processed:{eventId} before replay.
+ *   (skip duplicates) → run handler → ack.
+ *   Redis claim failure (infra outage) → requeue after a short backoff, so a
+ *   Redis blip does not drain the queue into the DLQ.
+ *   Handler/envelope failure → release claim + nack without requeue → the
+ *   broker dead-letters to {queue}.dlq. If Redis DEL fails, the claim stays
+ *   (TTL 24h): log the key and still DLQ — operators must delete
+ *   event:processed:{eventId} before replay.
  *
  * Management UI (local dev): http://localhost:15672 (RABBITMQ_USER / RABBITMQ_PASSWORD do .env)
  */
@@ -97,8 +103,16 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
     if (this.consumerTag && this.channel) {
       await this.channel.cancel(this.consumerTag).catch(() => undefined);
     }
-    await this.channel?.close();
-    await this.connection?.close();
+    // The catches keep connection.close() running even when the channel already
+    // died with the broker — shutdown must not leak the underlying socket.
+    await this.channel
+      ?.close()
+      .catch((error: Error) => this.logger.warn(`RabbitMQ channel close failed: ${error.message}`));
+    await this.connection
+      ?.close()
+      .catch((error: Error) =>
+        this.logger.warn(`RabbitMQ connection close failed: ${error.message}`),
+      );
   }
 
   isEnabled(): boolean {
@@ -246,12 +260,13 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
       // this eventId BEFORE running the handler (SET NX, 24h TTL) so processing
       // happens at most once; concurrent replicas cannot both win the claim.
       dedupeKey = `event:processed:${event.eventId}`;
-      const claimed = await this.redis.setNx(dedupeKey, '1', 86400);
-      if (!claimed) {
+      const claim = await this.claimDedupeKey(message, dedupeKey);
+      if (claim === 'duplicate') {
         this.logger.debug(`Skipping duplicate event ${event.eventId}`);
         this.channel.ack(message);
         return;
       }
+      if (claim === 'requeued') return;
 
       await CorrelationContext.runAsync(
         CorrelationContext.resolve(
@@ -264,6 +279,38 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
       this.channel.ack(message);
     } catch (error) {
       await this.deadLetterOnFailure(message, dedupeKey, error);
+    }
+  }
+
+  /**
+   * Claims the eventId in Redis before the handler runs.
+   *
+   * Redis being down is an infrastructure outage, not a poison message: the
+   * message is requeued (after a short backoff) so a Redis blip does not drain
+   * the queue into the DLQ. Redeliveries repeat until Redis recovers — the
+   * ceiling is unbounded retries; if that ever hurts, cap redeliveries via
+   * x-death count and dead-letter. A claim that times out but actually
+   * succeeded is indistinguishable from a duplicate on redelivery
+   * (at-most-once, per ADR 0006) — nothing is lost.
+   */
+  private async claimDedupeKey(
+    message: ConsumeMessage,
+    dedupeKey: string,
+  ): Promise<'claimed' | 'duplicate' | 'requeued'> {
+    try {
+      const claimed = await this.redis.setNx(dedupeKey, '1', DEDUPE_TTL_SECONDS);
+      return claimed ? 'claimed' : 'duplicate';
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error(
+        `Failed to claim ${dedupeKey} (Redis unavailable?): ${err.message}. Requeueing for retry.`,
+        err.stack,
+      );
+      // Back off before requeueing: RabbitMQ would otherwise redeliver
+      // immediately, turning a Redis outage into a tight nack/redelivery loop.
+      await new Promise((resolve) => setTimeout(resolve, REQUEUE_BACKOFF_MS));
+      this.channel?.nack(message, false, true);
+      return 'requeued';
     }
   }
 

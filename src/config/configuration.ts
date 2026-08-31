@@ -23,6 +23,16 @@ import { z } from 'zod';
 export type RabbitMqMode = 'off' | 'publisher' | 'consumer';
 export type NodeEnv = 'development' | 'test' | 'production';
 
+/**
+ * Local dev broker URL used as the default in non-production environments.
+ * In production an explicit RABBITMQ_URL is mandatory — a service booting with
+ * example credentials against localhost is always a misconfiguration.
+ */
+const DEV_RABBITMQ_URL = 'amqp://hypatia:hypatia-rabbitmq-dev@localhost:5672';
+
+/** Practical floor for HS256 secrets: 32 bytes (256 bits). */
+const MIN_JWT_SECRET_LENGTH = 32;
+
 export interface AppConfig {
   port: number;
   nodeEnv: NodeEnv;
@@ -51,7 +61,7 @@ const envSchema = z
     SERVICE_NAME: z.string().min(1, 'SERVICE_NAME is required'),
     DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
     REDIS_URL: z.string().min(1, 'REDIS_URL is required').default('redis://localhost:6379'),
-    RABBITMQ_URL: z.string().default('amqp://hypatia:hypatia-rabbitmq-dev@localhost:5672'),
+    RABBITMQ_URL: z.string().default(DEV_RABBITMQ_URL),
     RABBITMQ_MODE: z.enum(['off', 'publisher', 'consumer']).default('off'),
     RABBITMQ_EXCHANGE: z.string().default('hypatia.events'),
     RABBITMQ_DLX_EXCHANGE: z.string().default('hypatia.events.dlx'),
@@ -86,6 +96,8 @@ const PRODUCTION_PLACEHOLDER_SECRETS = new Set([
 function refineProductionEnv(
   env: {
     NODE_ENV: NodeEnv;
+    RABBITMQ_MODE: 'off' | 'publisher' | 'consumer';
+    RABBITMQ_URL?: string;
     ARGUS_JWT_SECRET?: string;
     INTERNAL_API_KEY?: string;
   },
@@ -93,6 +105,18 @@ function refineProductionEnv(
 ): void {
   if (env.NODE_ENV !== 'production') {
     return;
+  }
+
+  if (
+    env.RABBITMQ_MODE !== 'off' &&
+    (!env.RABBITMQ_URL?.trim() || env.RABBITMQ_URL.trim() === DEV_RABBITMQ_URL)
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['RABBITMQ_URL'],
+      message:
+        'RABBITMQ_URL must be set explicitly in production when RABBITMQ_MODE is publisher or consumer (the localhost dev default is not accepted)',
+    });
   }
 
   const jwtSecret = env.ARGUS_JWT_SECRET?.trim();
@@ -108,6 +132,14 @@ function refineProductionEnv(
 
   rejectPlaceholderSecret(ctx, 'INTERNAL_API_KEY', apiKey);
   rejectPlaceholderSecret(ctx, 'ARGUS_JWT_SECRET', jwtSecret);
+
+  if (jwtSecret && jwtSecret.length < MIN_JWT_SECRET_LENGTH) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['ARGUS_JWT_SECRET'],
+      message: `ARGUS_JWT_SECRET must be at least ${MIN_JWT_SECRET_LENGTH} characters in production`,
+    });
+  }
 }
 
 function rejectPlaceholderSecret(

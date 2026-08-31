@@ -181,6 +181,24 @@ describe('RabbitMqService', () => {
       expect(ack).toHaveBeenCalled();
     });
 
+    it('requeues the message when the Redis claim fails (infra outage)', async () => {
+      jest.useFakeTimers();
+      try {
+        redis.setNx.mockRejectedValue(new Error('redis unavailable'));
+
+        const assertion = expect(handle(buildEvent())).resolves.toBeUndefined();
+        await jest.runAllTimersAsync();
+        await assertion;
+
+        expect(handler).not.toHaveBeenCalled();
+        expect(redis.del).not.toHaveBeenCalled();
+        expect(ack).not.toHaveBeenCalled();
+        expect(nack).toHaveBeenCalledWith(expect.anything(), false, true);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     it('nacks and releases the claim when the handler throws', async () => {
       handler.mockRejectedValue(new Error('handler failed'));
 

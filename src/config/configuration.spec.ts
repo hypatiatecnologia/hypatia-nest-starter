@@ -93,6 +93,61 @@ describe('validateConfig', () => {
     expect(config.internalApiKey).toBe('prod-internal-api-key');
   });
 
+  it('rejects the localhost dev RabbitMQ default in production with messaging enabled', () => {
+    expect(() =>
+      validateConfig({
+        ...validEnv,
+        NODE_ENV: 'production',
+        RABBITMQ_MODE: 'publisher',
+        RABBITMQ_URL: 'amqp://hypatia:hypatia-rabbitmq-dev@localhost:5672',
+        INTERNAL_API_KEY: 'prod-internal-api-key',
+      }),
+    ).toThrow('RABBITMQ_URL must be set explicitly in production');
+  });
+
+  it('rejects an unset RABBITMQ_URL in production with messaging enabled', () => {
+    const env: Record<string, string> = {
+      ...validEnv,
+      NODE_ENV: 'production',
+      RABBITMQ_MODE: 'publisher',
+      INTERNAL_API_KEY: 'prod-internal-api-key',
+    };
+    delete env.RABBITMQ_URL;
+
+    expect(() => validateConfig(env)).toThrow('RABBITMQ_URL must be set explicitly in production');
+  });
+
+  it('accepts the dev RabbitMQ default in production when messaging is off', () => {
+    const config = validateConfig({
+      ...validEnv,
+      NODE_ENV: 'production',
+      INTERNAL_API_KEY: 'prod-internal-api-key',
+    });
+    expect(config.rabbitmqMode).toBe('off');
+    expect(config.rabbitmqUrl).toBe('amqp://hypatia:hypatia-rabbitmq-dev@localhost:5672');
+  });
+
+  it('rejects a short ARGUS_JWT_SECRET in production', () => {
+    expect(() =>
+      validateConfig({
+        ...validEnv,
+        NODE_ENV: 'production',
+        ARGUS_JWT_SECRET: 'too-short-secret',
+        INTERNAL_API_KEY: '',
+      }),
+    ).toThrow('ARGUS_JWT_SECRET must be at least 32 characters in production');
+  });
+
+  it('accepts a 32-character ARGUS_JWT_SECRET in production', () => {
+    const config = validateConfig({
+      ...validEnv,
+      NODE_ENV: 'production',
+      ARGUS_JWT_SECRET: 'a'.repeat(32),
+      INTERNAL_API_KEY: '',
+    });
+    expect(config.argusJwtSecret).toBe('a'.repeat(32));
+  });
+
   it('maps optional auth secrets when provided', () => {
     const config = validateConfig({
       ...validEnv,
