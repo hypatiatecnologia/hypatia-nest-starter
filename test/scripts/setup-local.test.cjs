@@ -16,11 +16,24 @@ function fixture() {
   return { root, script: join(root, 'scripts', 'setup-local.sh') };
 }
 
+function installStubs(binDir, commands) {
+  mkdirSync(binDir);
+  for (const [name, exitCode] of Object.entries(commands)) {
+    const path = join(binDir, name);
+    writeFileSync(path, `#!/bin/sh\nexit ${exitCode}\n`);
+    chmodSync(path, 0o755);
+  }
+}
+
 test('reports a missing Docker prerequisite before writing .env', () => {
   const { root, script } = fixture();
+  const fakeBin = join(root, 'bin');
+  // GitHub-hosted runners ship docker in /usr/bin. Keep PATH to this stub
+  // directory only so docker is absent while npm/npx still resolve.
+  installStubs(fakeBin, { npm: 0, npx: 0 });
   const result = spawnSync('/bin/bash', [script], {
     encoding: 'utf8',
-    env: { ...process.env, PATH: '/usr/bin:/bin' },
+    env: { ...process.env, PATH: fakeBin },
   });
   assert.notEqual(result.status, 0);
   assert.match(result.stdout, /Missing prerequisite: docker/);
@@ -30,12 +43,7 @@ test('reports a missing Docker prerequisite before writing .env', () => {
 test('reports an unavailable Compose v2 before writing .env', () => {
   const { root, script } = fixture();
   const fakeBin = join(root, 'bin');
-  mkdirSync(fakeBin);
-  for (const name of ['docker', 'npm', 'npx']) {
-    const path = join(fakeBin, name);
-    writeFileSync(path, name === 'docker' ? '#!/bin/sh\nexit 1\n' : '#!/bin/sh\nexit 0\n');
-    chmodSync(path, 0o755);
-  }
+  installStubs(fakeBin, { docker: 1, npm: 0, npx: 0 });
   const result = spawnSync('/bin/bash', [script], {
     encoding: 'utf8',
     env: { ...process.env, PATH: `${fakeBin}:/usr/bin:/bin` },
