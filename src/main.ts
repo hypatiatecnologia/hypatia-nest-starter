@@ -37,7 +37,7 @@ async function bootstrap() {
   const serviceName = config.get('serviceName', { infer: true });
   const nodeEnv = config.get('nodeEnv', { infer: true });
 
-  // Behind Cerberus/reverse proxy: trust X-Forwarded-* so req.ip (throttling,
+  // Behind a gateway/reverse proxy: trust X-Forwarded-* so req.ip (throttling,
   // logs) reflects the real client. See TRUST_PROXY in configuration.ts.
   const trustProxy = config.get('trustProxy', { infer: true });
   if (trustProxy !== undefined) {

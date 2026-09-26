@@ -9,7 +9,7 @@ import { RedisService } from './redis/redis.service';
 import { RabbitMqService } from './rabbitmq/rabbitmq.service';
 
 /**
- * Health probes for orchestrators (Docker, Dokploy, k8s).
+ * Health probes for orchestrators (Docker, Compose, k8s).
  *
  * GET /health/live  — liveness: process is up. Never checks dependencies —
  *                     restarting the container does not fix Postgres/Redis.

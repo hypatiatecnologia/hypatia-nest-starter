@@ -2,8 +2,8 @@
 # Scaffolds a new Hypatia microservice repo from this starter.
 #
 # Usage:
-#   npm run create-service -- athena-core api
-#   npm run create-service -- hermes-worker worker
+#   npm run create-service -- orders-api api
+#   npm run create-service -- notifications-worker worker
 #
 # Creates ../<service-name> with the chosen archetype env, renames placeholders,
 # and runs git init. Does NOT push to remote — add origin manually.

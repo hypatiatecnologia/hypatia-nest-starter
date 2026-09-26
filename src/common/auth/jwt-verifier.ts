@@ -9,7 +9,7 @@ export interface JwtVerifyOptions {
 }
 
 /**
- * Verifies an HS256 JWT issued by Argus (or compatible issuers) via `jose`.
+ * Verifies an HS256 JWT issued by the auth service (or any compatible issuer) via `jose`.
  *
  * Enforced: signature, algorithm pinned to HS256, `exp` and `sub` required
  * (no eternal or anonymous tokens), 5s clock tolerance, and optional

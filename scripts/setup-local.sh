@@ -78,7 +78,7 @@ start_local_infra() {
 
   if [[ "$open_count" -gt 0 ]]; then
     echo "Error: ports 5432/6379/5672 partially in use (${open_count}/3 open)."
-    echo "Stop conflicting containers (e.g. another Pantheon repo) or free those ports, then retry."
+    echo "Stop conflicting containers (e.g. another service repo) or free those ports, then retry."
     exit 1
   fi
 

@@ -14,7 +14,7 @@ import { verifyHs256Jwt } from './jwt-verifier';
  * runs on EVERY route by default. Routes opt out explicitly with @Public()
  * (health probes do); everything else must present one of:
  *
- *   1. `Authorization: Bearer <jwt>` — HS256 token issued by Argus
+ *   1. `Authorization: Bearer <jwt>` — HS256 token from the auth service
  *   2. `x-api-key: <key>`           — interim service-to-service auth
  *
  * JWT is tried first because it carries identity (sub, claims); the API key

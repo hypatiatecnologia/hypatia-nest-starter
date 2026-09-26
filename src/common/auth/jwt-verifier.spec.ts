@@ -61,11 +61,11 @@ describe('verifyHs256Jwt', () => {
   });
 
   it('enforces audience when configured', async () => {
-    const good = createToken({ sub: 'u', exp: futureExp(), aud: 'athena-core' }, secret);
-    const bad = createToken({ sub: 'u', exp: futureExp(), aud: 'midas-payment' }, secret);
+    const good = createToken({ sub: 'u', exp: futureExp(), aud: 'orders-api' }, secret);
+    const bad = createToken({ sub: 'u', exp: futureExp(), aud: 'payments-api' }, secret);
 
-    expect(await verifyHs256Jwt(good, secret, { audience: 'athena-core' })).not.toBeNull();
-    expect(await verifyHs256Jwt(bad, secret, { audience: 'athena-core' })).toBeNull();
+    expect(await verifyHs256Jwt(good, secret, { audience: 'orders-api' })).not.toBeNull();
+    expect(await verifyHs256Jwt(bad, secret, { audience: 'orders-api' })).toBeNull();
   });
 
   it('rejects alg=none tokens', async () => {

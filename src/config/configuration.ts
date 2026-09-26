@@ -16,9 +16,9 @@ import { z } from 'zod';
  * offending variable — a service with broken config must not come up half-alive.
  *
  * RABBITMQ_MODE:
- *   off       — no RabbitMQ connection (e.g. early Hades / services without messaging)
- *   publisher — connect and publish events (Athena, Midas, Nemesis)
- *   consumer  — connect and consume from RABBITMQ_QUEUE (Hermes)
+ *   off       — no RabbitMQ connection (e.g. services without messaging)
+ *   publisher — connect and publish events (api archetype)
+ *   consumer  — connect and consume from RABBITMQ_QUEUE (worker archetype)
  */
 export type RabbitMqMode = 'off' | 'publisher' | 'consumer';
 export type NodeEnv = 'development' | 'test' | 'production';
@@ -48,7 +48,7 @@ export interface AppConfig {
   argusJwtIssuer?: string;
   argusJwtAudience?: string;
   internalApiKey?: string;
-  /** Express `trust proxy` — set when running behind Cerberus/reverse proxy. */
+  /** Express `trust proxy` — set when running behind a gateway/reverse proxy. */
   trustProxy?: number | string;
   throttleTtlMs: number;
   throttleLimit: number;

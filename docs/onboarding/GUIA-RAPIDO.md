@@ -26,9 +26,9 @@ npm run test:ci            # testes relacionados aos arquivos alterados
 docker compose up -d postgres redis rabbitmq
 docker compose up --build  # stack completa + API
 
-# Novo serviço Pantheon
-npm run create-service -- athena-core api
-npm run create-service -- hermes-worker worker
+# Novo serviço
+npm run create-service -- orders-api api
+npm run create-service -- notifications-worker worker
 ```
 
 ## URLs locais
@@ -148,7 +148,7 @@ curl -X POST http://localhost:3000/example/events \
 
 ## Integração HTTP outbound
 
-Use `HttpClientService` para chamar APIs externas (Midas, Hades, Argus) com `x-correlation-id` automático:
+Use `HttpClientService` para chamar APIs externas (por exemplo, serviços de pagamento ou de autenticação) com `x-correlation-id` automático:
 
 ```typescript
 constructor(private readonly http: HttpClientService) {}

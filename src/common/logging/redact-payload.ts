@@ -61,4 +61,21 @@ export function redactPayload<T extends Record<string, unknown>>(
   return redactNode(target) as T;
 }
 
+/**
+ * pino `redact.paths` for HTTP access logs, built from the same field list as
+ * redactPayload so both redaction layers agree. fast-redact allows a single
+ * `*` per path, so body fields are covered at the top level and one nesting
+ * level; deeper structures need redactPayload before logging. Unlike
+ * redactPayload, fast-redact matches field names case-sensitively.
+ */
+export function buildLogRedactPaths(
+  sensitiveFields: readonly string[] = DEFAULT_SENSITIVE_FIELDS,
+): string[] {
+  return [
+    'req.headers.authorization',
+    'req.headers["x-api-key"]',
+    ...sensitiveFields.flatMap((field) => [`req.body.${field}`, `req.body.*.${field}`]),
+  ];
+}
+
 export { DEFAULT_SENSITIVE_FIELDS };

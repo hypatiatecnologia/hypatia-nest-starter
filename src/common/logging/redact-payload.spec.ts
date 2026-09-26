@@ -1,4 +1,4 @@
-import { redactPayload, DEFAULT_SENSITIVE_FIELDS } from './redact-payload';
+import { redactPayload, DEFAULT_SENSITIVE_FIELDS, buildLogRedactPaths } from './redact-payload';
 
 describe('redactPayload', () => {
   it('masks top-level sensitive fields with a fixed mask (no length leak)', () => {
@@ -47,5 +47,19 @@ describe('redactPayload', () => {
   it('exports default sensitive fields', () => {
     expect(DEFAULT_SENSITIVE_FIELDS).toContain('password');
     expect(DEFAULT_SENSITIVE_FIELDS).toContain('cpf');
+  });
+});
+
+describe('buildLogRedactPaths', () => {
+  it('covers auth headers and every default sensitive field at body depth 0 and 1', () => {
+    const paths = buildLogRedactPaths();
+
+    expect(paths).toEqual(
+      expect.arrayContaining(['req.headers.authorization', 'req.headers["x-api-key"]']),
+    );
+    for (const field of DEFAULT_SENSITIVE_FIELDS) {
+      expect(paths).toContain(`req.body.${field}`);
+      expect(paths).toContain(`req.body.*.${field}`);
+    }
   });
 });

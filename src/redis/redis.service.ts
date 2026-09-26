@@ -6,8 +6,8 @@ import { AppConfig } from '../config/configuration';
 /**
  * Thin wrapper over ioredis.
  *
- * Common uses in Hypatia services:
- * - Athena: Redlock / inventory locks during checkout
+ * Common uses:
+ * - Distributed locks (e.g. around a checkout or other critical section)
  * - Consumers: idempotency keys (`event:processed:{eventId}`)
  * - General: short-lived cache, rate-limit counters
  *

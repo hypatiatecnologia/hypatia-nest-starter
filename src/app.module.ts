@@ -10,6 +10,7 @@ import loadConfiguration, { AppConfig, validateConfig } from './config/configura
 import { CORRELATION_ID_HEADER } from './common/correlation/correlation.constants';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { buildLogRedactPaths } from './common/logging/redact-payload';
 import { discoverFeatureModules } from './common/module-discovery/module-discovery';
 import { HttpClientModule } from './http/http-client.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -70,22 +71,8 @@ export class AppModule {
             },
             customProps: (req) => ({ correlationId: req.id }),
             redact: {
-              // Covers top-level body fields and one nesting level (fast-redact
-              // allows a single `*` per path). For deeper structures, redact
-              // explicitly with redactPayload before logging.
-              paths: [
-                'req.headers.authorization',
-                'req.headers["x-api-key"]',
-                ...[
-                  'password',
-                  'cpf',
-                  'token',
-                  'accessToken',
-                  'refreshToken',
-                  'creditCard',
-                  'apiKey',
-                ].flatMap((field) => [`req.body.${field}`, `req.body.*.${field}`]),
-              ],
+              // Same field list as redactPayload (top level + one nesting level, exact case).
+              paths: buildLogRedactPaths(),
               censor: '[REDACTED]',
             },
           },
