@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { execFileSync, spawnSync } = require('node:child_process');
-const { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, writeFileSync } = require('node:fs');
+const { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
 
@@ -14,6 +14,10 @@ function fixture() {
   mkdirSync(join(starter, 'archetypes'));
   cpSync(join(sourceRoot, 'scripts', 'create-service.sh'), join(starter, 'scripts', 'create-service.sh'));
   writeFileSync(join(starter, 'package.json'), '{"name":"hypatia-nest-starter"}\n');
+  writeFileSync(join(starter, 'package-lock.json'), JSON.stringify({
+    name: 'hypatia-nest-starter', lockfileVersion: 3,
+    packages: { '': { name: 'hypatia-nest-starter' } },
+  }));
   writeFileSync(join(starter, 'README.md'), '# hypatia-nest-starter\n');
   writeFileSync(join(starter, 'archetypes', 'api.env.example'), 'SERVICE_NAME=hypatia-service\nINTERNAL_API_KEY=change-me-local-dev\n');
   writeFileSync(join(starter, 'archetypes', 'worker.env.example'), 'SERVICE_NAME=hypatia-worker\nINTERNAL_API_KEY=change-me-local-dev\n');
@@ -58,5 +62,28 @@ test('creates and initializes a valid service atomically', () => {
   const target = join(root, 'sample-worker');
   assert.equal(existsSync(join(target, '.git')), true);
   assert.match(require(join(target, 'package.json')).name, /sample-worker/);
+  const lock = JSON.parse(readFileSync(join(target, 'package-lock.json'), 'utf8'));
+  assert.equal(lock.name, 'sample-worker');
+  assert.equal(lock.packages[''].name, 'sample-worker');
   assert.match(require('node:fs').readFileSync(join(target, '.env.example'), 'utf8'), /sample-worker/);
+});
+
+test('excludes environment variants and credential directories from the copy', () => {
+  const { root, script } = fixture();
+  const fakeBin = join(root, 'bin');
+  mkdirSync(fakeBin);
+  const fakeRsync = join(fakeBin, 'rsync');
+  // Capture the copy boundary without creating or reading credential files.
+  writeFileSync(fakeRsync, '#!/bin/sh\nprintf "%s\\n" "$@"\nexit 23\n');
+  chmodSync(fakeRsync, 0o755);
+  const result = spawnSync('/bin/bash', [script, 'sample-api', 'api'], {
+    encoding: 'utf8',
+    env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH}` },
+  });
+  assert.notEqual(result.status, 0);
+  const args = result.stdout.split('\n');
+  const exclusions = args.filter((_, index) => args[index - 1] === '--exclude');
+  for (const pattern of ['.env', '.env.*', 'secrets', '.aws', '.ssh']) {
+    assert.ok(exclusions.includes(pattern), `Missing copy exclusion: ${pattern}`);
+  }
 });

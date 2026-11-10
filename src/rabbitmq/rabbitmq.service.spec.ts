@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigModule } from '@nestjs/config';
-import { ChannelWrapper } from 'amqp-connection-manager';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AmqpConnectionManagerClass, ChannelWrapper } from 'amqp-connection-manager';
 import { ConsumeMessage } from 'amqplib';
 import configuration, { validateConfig } from '../config/configuration';
 import { CorrelationContext } from '../common/correlation/correlation.context';
@@ -126,6 +126,24 @@ describe('RabbitMqService', () => {
         expect.objectContaining({ correlationId: 'ctx-from-http' }),
       );
     });
+
+    it('removes timed-out messages from the real disconnected channel buffer', async () => {
+      jest.useFakeTimers();
+      const connection = new AmqpConnectionManagerClass(['amqp://localhost']);
+      const channel = connection.createChannel({});
+      (service as unknown as { channel: ChannelWrapper }).channel = channel;
+      try {
+        const promise = service.publish('example.created', { message: 'hello' });
+        const assertion = expect(promise).rejects.toThrow(/timeout|timed out/);
+        expect(channel.queueLength()).toBe(1);
+        await jest.advanceTimersByTimeAsync(10_000);
+        await assertion;
+        expect(channel.queueLength()).toBe(0);
+      } finally {
+        await channel.close();
+        jest.useRealTimers();
+      }
+    });
   });
 
   describe('message handling', () => {
@@ -157,7 +175,11 @@ describe('RabbitMqService', () => {
       const event = buildEvent();
       await handle(event);
 
-      expect(redis.setNx).toHaveBeenCalledWith('event:processed:evt-1', '1', 86400);
+      expect(redis.setNx).toHaveBeenCalledWith(
+        `event:processed:${encodeURIComponent(process.env.RABBITMQ_QUEUE ?? 'hypatia-service.events')}:evt-1`,
+        '1',
+        86400,
+      );
       expect(handler).toHaveBeenCalledWith(event);
       expect(ack).toHaveBeenCalled();
       expect(nack).not.toHaveBeenCalled();
@@ -170,6 +192,35 @@ describe('RabbitMqService', () => {
       });
 
       await handle(event);
+    });
+
+    it('deduplicates replicas of a queue without suppressing another subscription', async () => {
+      const claimed = new Set<string>();
+      redis.setNx.mockImplementation(async (key: string) => {
+        if (claimed.has(key)) return false;
+        claimed.add(key);
+        return true;
+      });
+      const otherHandler = jest.fn().mockResolvedValue(undefined);
+      const other = new RabbitMqService(
+        new ConfigService({ rabbitmqQueue: 'another-worker.events' }),
+        redis as unknown as RedisService,
+      );
+      (other as unknown as { channel: { ack: jest.Mock; nack: jest.Mock } }).channel = {
+        ack,
+        nack,
+      };
+      other.registerHandler('example.created', otherHandler);
+
+      await handle(buildEvent());
+      await handle(buildEvent());
+      await (
+        other as unknown as { handleMessage: (message: ConsumeMessage) => Promise<void> }
+      ).handleMessage(buildMessage(buildEvent()));
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(otherHandler).toHaveBeenCalledTimes(1);
+      expect(ack).toHaveBeenCalledTimes(3);
     });
 
     it('skips duplicate events (claim lost) and acks without invoking the handler', async () => {
@@ -206,7 +257,9 @@ describe('RabbitMqService', () => {
 
       expect(nack).toHaveBeenCalledWith(expect.anything(), false, false);
       expect(ack).not.toHaveBeenCalled();
-      expect(redis.del).toHaveBeenCalledWith('event:processed:evt-1');
+      expect(redis.del).toHaveBeenCalledWith(
+        `event:processed:${encodeURIComponent(process.env.RABBITMQ_QUEUE ?? 'hypatia-service.events')}:evt-1`,
+      );
     });
 
     it('still dead-letters when releasing the claim fails', async () => {
@@ -215,7 +268,9 @@ describe('RabbitMqService', () => {
 
       await handle(buildEvent());
 
-      expect(redis.del).toHaveBeenCalledWith('event:processed:evt-1');
+      expect(redis.del).toHaveBeenCalledWith(
+        `event:processed:${encodeURIComponent(process.env.RABBITMQ_QUEUE ?? 'hypatia-service.events')}:evt-1`,
+      );
       expect(nack).toHaveBeenCalledWith(expect.anything(), false, false);
       expect(ack).not.toHaveBeenCalled();
     });

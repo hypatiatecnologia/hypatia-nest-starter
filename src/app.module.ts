@@ -13,6 +13,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { buildLogRedactPaths } from './common/logging/redact-payload';
 import { discoverFeatureModules } from './common/module-discovery/module-discovery';
 import { HttpClientModule } from './http/http-client.module';
+import { HttpClientError } from './http/http-client.error';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { RedisService } from './redis/redis.service';
@@ -70,6 +71,29 @@ export class AppModule {
               return value ?? randomUUID();
             },
             customProps: (req) => ({ correlationId: req.id }),
+            // Allowlist access-log fields: default serializers include cookies,
+            // arbitrary headers, query parameters, and response Set-Cookie.
+            serializers: {
+              err: (err) => {
+                // pino's default serializer expands cause.message/stack.
+                // JSON parse errors can contain upstream response fragments.
+                const original = err.raw;
+                return original instanceof HttpClientError
+                  ? {
+                      type: original.name,
+                      message: original.message,
+                      stack: original.stack,
+                      statusCode: original.statusCode,
+                    }
+                  : err;
+              },
+              req: (req) => ({
+                id: req.id,
+                method: req.method,
+                url: req.url?.split('?')[0],
+              }),
+              res: (res) => ({ statusCode: res.statusCode }),
+            },
             redact: {
               // Same field list as redactPayload (top level + one nesting level, exact case).
               paths: buildLogRedactPaths(),

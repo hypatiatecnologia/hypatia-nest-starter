@@ -59,6 +59,10 @@ rsync -a \
   --exclude dist \
   --exclude coverage \
   --exclude .env \
+  --exclude '.env.*' \
+  --exclude secrets \
+  --exclude .aws \
+  --exclude .ssh \
   --exclude .git \
   "$STARTER_DIR/" "$STAGING_DIR/"
 
@@ -83,6 +87,7 @@ replace() {
 }
 
 replace "${STAGING_DIR}/package.json"
+replace "${STAGING_DIR}/package-lock.json"
 replace "${STAGING_DIR}/.env.example"
 replace "${STAGING_DIR}/.env"
 replace "${STAGING_DIR}/README.md"

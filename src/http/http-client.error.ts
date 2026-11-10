@@ -10,6 +10,7 @@ export class HttpClientError extends Error {
     method: string,
     url: string,
     detail?: string,
+    public readonly cause?: unknown,
   ) {
     const suffix = detail ? ` — ${detail}` : '';
     super(`HTTP ${statusCode} for ${method} ${sanitizeUrlForLog(url)}${suffix}`);

@@ -106,11 +106,23 @@ export class HttpClientService {
 
       try {
         return (await response.json()) as T;
-      } catch {
-        throw new HttpClientError(response.status, method, url, 'response body is not valid JSON');
+      } catch (error) {
+        // Reading the body can fail because of a timeout or network reset.
+        // Preserve those failures so the retry policy can recognize them.
+        if (!(error instanceof SyntaxError)) throw error;
+        throw new HttpClientError(
+          response.status,
+          method,
+          url,
+          'response body is not valid JSON',
+          error,
+        );
       }
     } finally {
       clearTimeout(timeout);
+      // Error responses have unread bodies. Abort them instead of retaining
+      // connections while the upstream keeps streaming an ignored body.
+      controller.abort();
     }
   }
 
@@ -127,7 +139,8 @@ export class HttpClientService {
   }
 
   private buildHeaders(extra?: Record<string, string>): Record<string, string> {
-    const headers: Record<string, string> = { accept: 'application/json', ...extra };
+    const headers: Record<string, string> = Object.fromEntries(new Headers(extra));
+    headers.accept ??= 'application/json';
     const correlationId = CorrelationContext.get();
     if (correlationId) {
       headers[CORRELATION_ID_HEADER] = correlationId;

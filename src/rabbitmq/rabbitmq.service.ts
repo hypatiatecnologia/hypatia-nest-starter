@@ -63,7 +63,7 @@ const hypatiaEventSchema = z
  *   Handler/envelope failure → release claim + nack without requeue → the
  *   broker dead-letters to {queue}.dlq. If Redis DEL fails, the claim stays
  *   (TTL 24h): log the key and still DLQ — operators must delete
- *   event:processed:{eventId} before replay.
+ *   the queue-scoped event:processed key before replay (ADR 0008).
  *
  * Management UI (local dev): http://localhost:15672 (RABBITMQ_USER / RABBITMQ_PASSWORD do .env)
  */
@@ -151,14 +151,16 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
 
     // ChannelWrapper buffers while disconnected — without a timeout the caller
     // (usually an HTTP request) hangs for the whole outage. On timeout the
-    // buffered message may still go out after reconnect; consumers dedupe by
-    // eventId, so a caller retry does not double-process.
+    // native timeout also removes unsent messages from ChannelWrapper's buffer.
+    // A message already sent may still have reached the broker: a new call
+    // generates a new eventId, so business retries need their own idempotency.
     await withTimeout(
       this.channel.publish(exchange, type, body, {
         persistent: true,
         contentType: 'application/json',
         messageId: event.eventId,
         correlationId: event.correlationId,
+        timeout: PUBLISH_TIMEOUT_MS,
       }),
       PUBLISH_TIMEOUT_MS,
       `RabbitMQ publish (${type})`,
@@ -258,8 +260,10 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
       // Idempotency: RabbitMQ delivers *at least once* — redeliveries happen on
       // consumer crash, network blips, or manual DLQ replays. Atomically claim
       // this eventId BEFORE running the handler (SET NX, 24h TTL) so processing
-      // happens at most once; concurrent replicas cannot both win the claim.
-      dedupeKey = `event:processed:${event.eventId}`;
+      // is suppressed within the TTL for replicas of THIS queue. Independent
+      // subscriptions must not suppress each other when sharing Redis.
+      const queue = this.config.get('rabbitmqQueue', { infer: true });
+      dedupeKey = `event:processed:${encodeURIComponent(queue)}:${encodeURIComponent(event.eventId)}`;
       const claim = await this.claimDedupeKey(message, dedupeKey);
       if (claim === 'duplicate') {
         this.logger.debug(`Skipping duplicate event ${event.eventId}`);
@@ -291,7 +295,7 @@ export class RabbitMqService implements OnApplicationBootstrap, OnModuleDestroy 
    * ceiling is unbounded retries; if that ever hurts, cap redeliveries via
    * x-death count and dead-letter. A claim that times out but actually
    * succeeded is indistinguishable from a duplicate on redelivery
-   * (at-most-once, per ADR 0006) — nothing is lost.
+   * and can skip a handler that never ran (see ADRs 0006 and 0008).
    */
   private async claimDedupeKey(
     message: ConsumeMessage,

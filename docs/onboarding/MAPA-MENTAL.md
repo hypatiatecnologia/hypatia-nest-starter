@@ -20,7 +20,14 @@ sequenceDiagram
 
 ## Fluxo do worker
 
-Claim Redis **antes** do handler (ADR 0006): a invocação acontece no máximo uma vez entre réplicas. Crash no meio do handler não reprocessa até o TTL (24h) ou até alguém apagar `event:processed:{eventId}`.
+Claim Redis **antes** do handler (ADRs 0006 e 0008): réplicas da mesma fila disputam
+`event:processed:{encodeURIComponent(queue)}:{encodeURIComponent(eventId)}`. Filas
+diferentes processam suas próprias assinaturas, mesmo compartilhando Redis.
+O claim suprime reentregas durante o TTL (24h); crash após o claim pode impedir
+a execução ou conclusão do handler. Handlers com efeitos de negócio precisam de
+idempotência persistente própria. Para replay após falha de liberação, apagar
+somente a chave da fila e evento afetados. Serviços existentes devem seguir o
+procedimento de migração do [ADR 0008](../adr/0008-queue-scoped-event-deduplication.md).
 
 ```mermaid
 sequenceDiagram

@@ -56,6 +56,37 @@ describe('HttpClientService', () => {
     );
   });
 
+  it('normalizes header names so correlation and JSON content type are not duplicated', async () => {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 204 });
+    await CorrelationContext.runAsync('current-trace', () =>
+      new HttpClientService().post('https://api.example.com/items', {
+        headers: {
+          'X-Correlation-ID': 'stale-trace',
+          'Content-Type': 'text/plain',
+          Accept: 'text/plain',
+        },
+        body: { message: 'hello' },
+      }),
+    );
+    const [, init] = (global.fetch as jest.Mock).mock.calls[0] as [string, RequestInit];
+    const headers = new Headers(init.headers);
+    expect(headers.get('x-correlation-id')).toBe('current-trace');
+    expect(headers.get('content-type')).toBe('application/json');
+    expect(headers.get('accept')).toBe('text/plain');
+  });
+
+  it('aborts unread error bodies before returning, freeing the connection', async () => {
+    let signal: AbortSignal | undefined;
+    global.fetch = jest.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      signal = init.signal ?? undefined;
+      return { ok: false, status: 400 };
+    });
+    await expect(new HttpClientService().get('https://api.example.com/fail')).rejects.toThrow(
+      HttpClientError,
+    );
+    expect(signal?.aborted).toBe(true);
+  });
+
   it('throws HttpClientError with statusCode on non-ok response (non-retryable)', async () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 400 });
 
@@ -95,8 +126,41 @@ describe('HttpClientService', () => {
     expect(global.fetch).toHaveBeenCalledTimes(1); // 200 is not retryable
   });
 
+  it('preserves the cause of invalid JSON responses', async () => {
+    const cause = new SyntaxError('Invalid JSON');
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw cause;
+      },
+    });
+    await expect(new HttpClientService().get('https://api.example.com/html')).rejects.toMatchObject(
+      { name: 'HttpClientError', cause },
+    );
+  });
+
   describe('retry behavior', () => {
     beforeEach(() => jest.useFakeTimers());
+
+    it('retries an interrupted response body instead of misclassifying it as invalid JSON', async () => {
+      const abortError = new DOMException('Response body timed out', 'AbortError');
+      global.fetch = jest
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => {
+            throw abortError;
+          },
+        })
+        .mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({ recovered: true }) });
+      const promise = new HttpClientService().get('https://api.example.com/slow');
+      const assertion = expect(promise).resolves.toEqual({ recovered: true });
+      await jest.runAllTimersAsync();
+      await assertion;
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
 
     it('retries on 502 up to MAX_ATTEMPTS and then throws', async () => {
       global.fetch = jest.fn().mockResolvedValue({ ok: false, status: 502 });
